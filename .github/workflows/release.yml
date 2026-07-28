@@ -111,7 +111,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-      - run: mkdir release
+      - run: mkdir -p release
       - run: >-
           npx --yes @cyclonedx/cdxgen@12.8.2
           --recurse
