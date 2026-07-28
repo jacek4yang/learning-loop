@@ -1,0 +1,101 @@
+{
+  "valid": [
+    {
+      "input": "00-Inbox/问题.md",
+      "canonical": "00-Inbox/问题.md",
+      "collision_key": "00-inbox/问题.md"
+    },
+    {
+      "input": "Notes/é.md",
+      "canonical": "Notes/é.md",
+      "collision_key": "notes/é.md"
+    },
+    {
+      "input": "日本語/한국어/emoji-🧠.md",
+      "canonical": "日本語/한국어/emoji-🧠.md",
+      "collision_key": "日本語/한국어/emoji-🧠.md"
+    },
+    {
+      "input": "space allowed/multiple.dots.name.md",
+      "canonical": "space allowed/multiple.dots.name.md",
+      "collision_key": "space allowed/multiple.dots.name.md"
+    },
+    {
+      "input": "Straße.md",
+      "canonical": "Straße.md",
+      "collision_key": "strasse.md"
+    }
+  ],
+  "invalid": [
+    {
+      "input": "",
+      "error": "empty_path"
+    },
+    {
+      "input": "/absolute.md",
+      "error": "absolute_path"
+    },
+    {
+      "input": "folder//note.md",
+      "error": "empty_segment"
+    },
+    {
+      "input": "./note.md",
+      "error": "dot_segment"
+    },
+    {
+      "input": "../note.md",
+      "error": "dot_segment"
+    },
+    {
+      "input": "folder\\note.md",
+      "error": "forbidden_character"
+    },
+    {
+      "input": "bad<name.md",
+      "error": "forbidden_character"
+    },
+    {
+      "input": "control\u0000name.md",
+      "error": "control_character"
+    },
+    {
+      "input": "trailing-space ",
+      "error": "trailing_space_or_dot"
+    },
+    {
+      "input": "trailing-dot.",
+      "error": "trailing_space_or_dot"
+    },
+    {
+      "input": "CON",
+      "error": "reserved_name"
+    },
+    {
+      "input": "aux.txt",
+      "error": "reserved_name"
+    },
+    {
+      "input": "COM9.log",
+      "error": "reserved_name"
+    },
+    {
+      "input": "LPT1",
+      "error": "reserved_name"
+    }
+  ],
+  "collision_groups": [
+    [
+      "Note.md",
+      "note.md"
+    ],
+    [
+      "é.md",
+      "é.md"
+    ],
+    [
+      "Straße.md",
+      "STRASSE.md"
+    ]
+  ]
+}

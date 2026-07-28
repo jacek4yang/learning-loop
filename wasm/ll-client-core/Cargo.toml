@@ -1,0 +1,16 @@
+[package]
+name = "ll-client-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ll-canonical = { path = "../../crates/ll-canonical", version = "0.1.0" }
+wasm-bindgen.workspace = true
+
+[lints]
+workspace = true

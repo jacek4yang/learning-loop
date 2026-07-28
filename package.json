@@ -12,6 +12,7 @@
     "build": "pnpm --if-present --recursive build",
     "lint": "pnpm --if-present --recursive lint",
     "test": "pnpm --if-present --recursive test",
+    "test:transport": "node scripts/verify-transport-spike.mjs",
     "typecheck": "pnpm --if-present --recursive typecheck"
   }
 }

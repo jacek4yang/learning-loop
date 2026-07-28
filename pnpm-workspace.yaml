@@ -1,0 +1,6 @@
+packages:
+  - plugin
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@types/node@26.1.2'
