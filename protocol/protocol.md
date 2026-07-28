@@ -17,7 +17,7 @@ Status: design baseline; wire compatibility is not stable before v1.0.0.
 
 | Method | Route | Body | Authentication |
 | --- | --- | --- | --- |
-| `GET` | `/v1/bootstrap` | none | Public, rate limited |
+| `GET` | `/v1/bootstrap` | none | Public, bounded and concurrency limited |
 | `POST` | `/v1/handshake` | one bounded Noise NK initiator message | Public, rate limited |
 | `POST` | `/v1/envelope` | session handle plus Noise transport ciphertext | Established session |
 
@@ -68,24 +68,27 @@ The Noise prologue is deterministic CBOR:
 ["learning-loop", 1, instance_id, "Noise_NK_25519_ChaChaPoly_BLAKE2s"]
 ```
 
-The response also assigns a random 256-bit session handle. The handle is an
+The final handshake response also assigns a random 256-bit session handle. The handle is an
 opaque lookup key, not an authorization bearer token; accepted requests still
 require valid ordered Noise transport ciphertext. Sessions expire after a
-short idle period and have a hard message/byte lifetime.
+fixed short lifetime and have a hard message lifetime.
 
 ## Encrypted authentication
 
-The first responder transport message is:
+The encrypted payload of the final responder handshake message is:
 
 ```text
 auth_challenge {
+  session_handle
   authentication_salt
   argon2_parameters
   random_challenge
   session_id
-  handshake_hash
 }
 ```
+
+Both peers obtain `handshake_hash` from the completed Noise state; it is not
+duplicated inside the payload whose ciphertext contributes to that hash.
 
 The client derives `server_auth_key` with Argon2id and returns:
 
@@ -111,28 +114,38 @@ The HTTP body is:
 ```text
 magic[4] = "LLP1"
 session_handle[32]
-ciphertext_length: u32 big endian
-noise_ciphertext[ciphertext_length]
+record_stream_length: u32 big endian
+noise_record_stream[record_stream_length]
 ```
 
-The decrypted application message contains:
+The record stream contains one or more records:
 
 ```text
-protocol_version
-message_type
-request_id
-sequence
-payload
+record_ciphertext_length: u16 big endian
+noise_transport_ciphertext[record_ciphertext_length]
 ```
 
-Requests for one session are serialized. `sequence` starts at zero after
-authentication and must increase by exactly one in each direction. The
+Each Noise ciphertext is at most 65,535 bytes, including its authentication
+tag. Application messages larger than one Noise message are split into
+60-KiB plaintext records and authenticated independently under consecutive
+Noise transport nonces. The receiver rejects empty, truncated, trailing, or
+oversized record streams and discards that session after any record failure.
+
+The decrypted deterministic CBOR application message is:
+
+```text
+[protocol_version, sequence, request]
+```
+
+Requests for one session are serialized. `sequence` starts at zero for the
+first encrypted authentication request and must increase by exactly one in
+each direction. The
 application sequence is checked in addition to the Noise transport nonce so a
 state-restoration bug fails closed.
 
 ## Operations
 
-Version 1 defines:
+The phase-1 object service implements:
 
 ```text
 authenticate
@@ -143,16 +156,23 @@ put_blob_begin
 put_blob_chunk
 put_blob_commit
 get_blob
+ping
+```
+
+Phase 2 extends protocol version 1 with:
+
+```text
 put_commit
 get_commit
 get_heads
 get_changes
-close_session
 ```
 
-Every mutating request includes a random idempotency key inside the encrypted
-payload. Duplicate keys return the original opaque result. Upload chunks carry
-an expected offset, total ciphertext size, and BLAKE3 hash.
+Blob begin is naturally idempotent by device, expected size, and BLAKE3 hash.
+Upload chunks carry an exact expected offset; reconnecting clients repeat begin
+to learn the durable offset. Commit-graph mutations added in phase 2 carry
+persistent idempotency identifiers and return the original result for exact
+duplicates.
 
 ## Commit acceptance
 

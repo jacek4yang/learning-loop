@@ -19,6 +19,10 @@ not authorize copying source.
 | `snow` | MIT OR Apache-2.0 | Cargo dependency | No | Select Apache-2.0 where permitted; retain notices in SBOM/third-party report. |
 | RustCrypto crates | MIT OR Apache-2.0 | Cargo dependencies | No | Select Apache-2.0 where permitted; retain notices. |
 | BLAKE3 | CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception | Cargo dependency | No | Select Apache-2.0; retain notices. |
+| `minicbor` | BlueOak-1.0.0 | deterministic bounded CBOR dependency | No | Permissive OSI-approved license; retain its notice in generated third-party material. |
+| `ring` and `untrusted` | Apache-2.0 AND ISC / ISC | transitive `snow` dependencies | No | Both terms are permissive; retain required notices. |
+| Dalek cryptography and `subtle` | BSD-3-Clause | X25519, Ed25519, and constant-time transitive/direct dependencies | No | Permissive BSD terms; retain copyright and disclaimer notices. |
+| `arrayref` | BSD-2-Clause | transitive BLAKE3 dependency | No | Permissive BSD terms; retain copyright and disclaimer notices. |
 | Git | GPL-2.0-only | conceptual documentation only | No | No Git code, executable, library, or repository mechanism is used by vault sync. |
 
 ## Policy

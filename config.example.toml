@@ -1,0 +1,3 @@
+data_dir = "/srv/learning-loop"
+listen = "0.0.0.0:48632"
+password = "${LEARNING_LOOP_SERVER_PASSWORD}"
