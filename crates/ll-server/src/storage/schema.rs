@@ -34,6 +34,28 @@ pub(super) fn migrate(connection: &mut Connection) -> Result<(), StorageError> {
             UNIQUE(device_id, expected_size, expected_hash)
         ) STRICT;
         CREATE INDEX IF NOT EXISTS uploads_created_at ON uploads(created_at);
+        CREATE TABLE IF NOT EXISTS commits (
+            commit_id BLOB PRIMARY KEY NOT NULL CHECK(length(commit_id) = 32),
+            vault_id BLOB NOT NULL CHECK(length(vault_id) = 16),
+            device_id BLOB NOT NULL REFERENCES devices(device_id),
+            device_sequence INTEGER NOT NULL CHECK(device_sequence > 0),
+            generation INTEGER NOT NULL CHECK(generation >= 0),
+            signed_record BLOB NOT NULL,
+            inserted_at INTEGER NOT NULL,
+            UNIQUE(device_id, device_sequence)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS commit_parents (
+            commit_id BLOB NOT NULL REFERENCES commits(commit_id),
+            parent_id BLOB NOT NULL REFERENCES commits(commit_id),
+            PRIMARY KEY(commit_id, parent_id)
+        ) STRICT;
+        CREATE TABLE IF NOT EXISTS heads (
+            vault_id BLOB NOT NULL CHECK(length(vault_id) = 16),
+            commit_id BLOB NOT NULL REFERENCES commits(commit_id),
+            PRIMARY KEY(vault_id, commit_id)
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS commits_graph_order
+            ON commits(vault_id, generation, commit_id);
         COMMIT;
         ",
     )?;

@@ -12,8 +12,9 @@ pub use codec::{
 };
 pub use frame::{FRAME_MAGIC, TransportFrame, decode_transport_frame, encode_transport_frame};
 pub use limits::{
-    MAX_CHUNK_BYTES, MAX_ENCRYPTED_DEVICE_NAME_BYTES, MAX_HANDSHAKE_BYTES, MAX_HTTP_BODY_BYTES,
-    MAX_OBJECT_BYTES, MAX_TRANSPORT_CIPHERTEXT_BYTES,
+    MAX_CHANGES_PER_RESPONSE, MAX_CHUNK_BYTES, MAX_ENCRYPTED_DEVICE_NAME_BYTES,
+    MAX_HANDSHAKE_BYTES, MAX_HEADS, MAX_HTTP_BODY_BYTES, MAX_KNOWN_COMMITS, MAX_OBJECT_BYTES,
+    MAX_SIGNED_COMMIT_BYTES, MAX_TRANSPORT_CIPHERTEXT_BYTES,
 };
 pub use types::{
     AuthChallenge, Bootstrap, ClientMessage, DeviceRecord, ErrorCode, Request, Response,

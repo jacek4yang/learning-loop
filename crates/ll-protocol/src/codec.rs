@@ -2,9 +2,9 @@ use minicbor::{Decoder, Encoder, decode, encode};
 use thiserror::Error;
 
 use crate::{
-    AuthChallenge, Bootstrap, ClientMessage, DeviceRecord, ErrorCode, MAX_CHUNK_BYTES,
-    MAX_ENCRYPTED_DEVICE_NAME_BYTES, NOISE_SUITE, PROTOCOL_VERSION, Request, Response,
-    ServerMessage,
+    AuthChallenge, Bootstrap, ClientMessage, DeviceRecord, ErrorCode, MAX_CHANGES_PER_RESPONSE,
+    MAX_CHUNK_BYTES, MAX_ENCRYPTED_DEVICE_NAME_BYTES, MAX_HEADS, MAX_KNOWN_COMMITS,
+    MAX_SIGNED_COMMIT_BYTES, NOISE_SUITE, PROTOCOL_VERSION, Request, Response, ServerMessage,
 };
 
 const TYPE_AUTHENTICATE: u8 = 1;
@@ -16,6 +16,10 @@ const TYPE_UPLOAD_CHUNK: u8 = 6;
 const TYPE_COMMIT_UPLOAD: u8 = 7;
 const TYPE_GET_BLOB: u8 = 8;
 const TYPE_PING: u8 = 9;
+const TYPE_PUT_COMMIT: u8 = 10;
+const TYPE_GET_COMMIT: u8 = 11;
+const TYPE_GET_HEADS: u8 = 12;
+const TYPE_GET_CHANGES: u8 = 13;
 
 const RESPONSE_AUTHENTICATED: u8 = 1;
 const RESPONSE_DEVICE_REGISTERED: u8 = 2;
@@ -26,6 +30,10 @@ const RESPONSE_CHUNK_ACCEPTED: u8 = 6;
 const RESPONSE_UPLOAD_COMMITTED: u8 = 7;
 const RESPONSE_BLOB_CHUNK: u8 = 8;
 const RESPONSE_PONG: u8 = 9;
+const RESPONSE_COMMIT_STORED: u8 = 10;
+const RESPONSE_COMMIT_RECORD: u8 = 11;
+const RESPONSE_HEADS: u8 = 12;
+const RESPONSE_CHANGES: u8 = 13;
 const RESPONSE_ERROR: u8 = 255;
 
 /// Deterministic CBOR encoding or decoding failure.
@@ -300,6 +308,26 @@ fn encode_request<W: encode::Write>(
                 .u64(*offset)?
                 .u32(*maximum_bytes)?;
         }
+        Request::PutCommit { signed_commit } => {
+            encoder
+                .array(2)?
+                .u8(TYPE_PUT_COMMIT)?
+                .bytes(signed_commit)?;
+        }
+        Request::GetCommit { commit_id } => {
+            encoder.array(2)?.u8(TYPE_GET_COMMIT)?.bytes(commit_id)?;
+        }
+        Request::GetHeads => {
+            encoder.array(1)?.u8(TYPE_GET_HEADS)?;
+        }
+        Request::GetChanges {
+            known_commit_ids,
+            maximum_commits,
+        } => {
+            encoder.array(3)?.u8(TYPE_GET_CHANGES)?;
+            encode_fixed_array(encoder, known_commit_ids)?;
+            encoder.u16(*maximum_commits)?;
+        }
         Request::Ping => {
             encoder.array(1)?.u8(TYPE_PING)?;
         }
@@ -357,6 +385,24 @@ fn decode_request(decoder: &mut Decoder<'_>) -> Result<Request, CodecError> {
             offset: decoder.u64()?,
             maximum_bytes: decoder.u32()?,
         }),
+        TYPE_PUT_COMMIT if length == 2 => Ok(Request::PutCommit {
+            signed_commit: bounded_bytes(decoder, MAX_SIGNED_COMMIT_BYTES)?,
+        }),
+        TYPE_GET_COMMIT if length == 2 => Ok(Request::GetCommit {
+            commit_id: fixed_bytes(decoder.bytes()?)?,
+        }),
+        TYPE_GET_HEADS if length == 1 => Ok(Request::GetHeads),
+        TYPE_GET_CHANGES if length == 3 => {
+            let known_commit_ids = decode_fixed_array(decoder, MAX_KNOWN_COMMITS)?;
+            let maximum_commits = decoder.u16()?;
+            if maximum_commits == 0 || usize::from(maximum_commits) > MAX_CHANGES_PER_RESPONSE {
+                return Err(CodecError::LimitExceeded);
+            }
+            Ok(Request::GetChanges {
+                known_commit_ids,
+                maximum_commits,
+            })
+        }
         TYPE_PING if length == 1 => Ok(Request::Ping),
         _ => Err(CodecError::UnsupportedValue),
     }
@@ -369,11 +415,13 @@ fn encode_response<W: encode::Write>(
     match response {
         Response::Authenticated {
             device_authenticated,
+            vault_id,
         } => {
             encoder
-                .array(2)?
+                .array(3)?
                 .u8(RESPONSE_AUTHENTICATED)?
-                .bool(*device_authenticated)?;
+                .bool(*device_authenticated)?
+                .bytes(vault_id)?;
         }
         Response::DeviceRegistered => {
             encoder.array(1)?.u8(RESPONSE_DEVICE_REGISTERED)?;
@@ -426,6 +474,31 @@ fn encode_response<W: encode::Write>(
                 .bool(*complete)?
                 .bytes(chunk)?;
         }
+        Response::CommitStored { commit_id, heads } => {
+            encoder
+                .array(3)?
+                .u8(RESPONSE_COMMIT_STORED)?
+                .bytes(commit_id)?;
+            encode_fixed_array(encoder, heads)?;
+        }
+        Response::CommitRecord { signed_commit } => {
+            encoder
+                .array(2)?
+                .u8(RESPONSE_COMMIT_RECORD)?
+                .bytes(signed_commit)?;
+        }
+        Response::Heads(heads) => {
+            encoder.array(2)?.u8(RESPONSE_HEADS)?;
+            encode_fixed_array(encoder, heads)?;
+        }
+        Response::Changes { commits, has_more } => {
+            encoder.array(3)?.u8(RESPONSE_CHANGES)?;
+            encoder.array(commits.len() as u64)?;
+            for commit in commits {
+                encoder.bytes(commit)?;
+            }
+            encoder.bool(*has_more)?;
+        }
         Response::Pong => {
             encoder.array(1)?.u8(RESPONSE_PONG)?;
         }
@@ -440,8 +513,9 @@ fn decode_response(decoder: &mut Decoder<'_>) -> Result<Response, CodecError> {
     let length = definite_array(decoder)?;
     let discriminator = decoder.u8()?;
     match discriminator {
-        RESPONSE_AUTHENTICATED if length == 2 => Ok(Response::Authenticated {
+        RESPONSE_AUTHENTICATED if length == 3 => Ok(Response::Authenticated {
             device_authenticated: decoder.bool()?,
+            vault_id: fixed_bytes(decoder.bytes()?)?,
         }),
         RESPONSE_DEVICE_REGISTERED if length == 1 => Ok(Response::DeviceRegistered),
         RESPONSE_DEVICES if length == 2 => {
@@ -478,6 +552,30 @@ fn decode_response(decoder: &mut Decoder<'_>) -> Result<Response, CodecError> {
             complete: decoder.bool()?,
             chunk: bounded_bytes(decoder, MAX_CHUNK_BYTES)?,
         }),
+        RESPONSE_COMMIT_STORED if length == 3 => Ok(Response::CommitStored {
+            commit_id: fixed_bytes(decoder.bytes()?)?,
+            heads: decode_fixed_array(decoder, MAX_HEADS)?,
+        }),
+        RESPONSE_COMMIT_RECORD if length == 2 => Ok(Response::CommitRecord {
+            signed_commit: bounded_bytes(decoder, MAX_SIGNED_COMMIT_BYTES)?,
+        }),
+        RESPONSE_HEADS if length == 2 => {
+            Ok(Response::Heads(decode_fixed_array(decoder, MAX_HEADS)?))
+        }
+        RESPONSE_CHANGES if length == 3 => {
+            let count = definite_array(decoder)?;
+            if count > MAX_CHANGES_PER_RESPONSE {
+                return Err(CodecError::LimitExceeded);
+            }
+            let mut commits = Vec::with_capacity(count);
+            for _ in 0..count {
+                commits.push(bounded_bytes(decoder, MAX_SIGNED_COMMIT_BYTES)?);
+            }
+            Ok(Response::Changes {
+                commits,
+                has_more: decoder.bool()?,
+            })
+        }
         RESPONSE_PONG if length == 1 => Ok(Response::Pong),
         RESPONSE_ERROR if length == 2 => Ok(Response::Error(
             ErrorCode::try_from(decoder.u16()?).map_err(|()| CodecError::UnsupportedValue)?,
@@ -496,6 +594,32 @@ fn encode_optional_bytes<W: encode::Write>(
         encoder.null()?;
     }
     Ok(())
+}
+
+fn encode_fixed_array<W: encode::Write, const N: usize>(
+    encoder: &mut Encoder<W>,
+    values: &[[u8; N]],
+) -> Result<(), encode::Error<W::Error>> {
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        encoder.bytes(value)?;
+    }
+    Ok(())
+}
+
+fn decode_fixed_array<const N: usize>(
+    decoder: &mut Decoder<'_>,
+    maximum: usize,
+) -> Result<Vec<[u8; N]>, CodecError> {
+    let count = definite_array(decoder)?;
+    if count > maximum {
+        return Err(CodecError::LimitExceeded);
+    }
+    let mut values = Vec::with_capacity(count);
+    for _ in 0..count {
+        values.push(fixed_bytes(decoder.bytes()?)?);
+    }
+    Ok(values)
 }
 
 fn decode_optional_fixed<const N: usize>(
@@ -617,6 +741,13 @@ mod tests {
                 offset: 12,
                 maximum_bytes: 13,
             },
+            Request::PutCommit {
+                signed_commit: vec![14, 15],
+            },
+            Request::GetChanges {
+                known_commit_ids: vec![[16; 32]],
+                maximum_commits: 2,
+            },
         ];
         for request in requests {
             let value = ClientMessage {
@@ -644,6 +775,14 @@ mod tests {
                 chunk: vec![3, 4],
             },
             Response::Error(ErrorCode::IntegrityFailure),
+            Response::CommitStored {
+                commit_id: [5; 32],
+                heads: vec![[6; 32]],
+            },
+            Response::Changes {
+                commits: vec![vec![7, 8]],
+                has_more: true,
+            },
         ];
         for response in responses {
             let value = ServerMessage {

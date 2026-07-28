@@ -1,6 +1,7 @@
 # Learning Loop Server
 
-The server is a minimal opaque-object service. It has three HTTP routes and
+The server is a minimal opaque-object and encrypted-commit service. It has
+three HTTP routes and
 never accepts credentials, vault names, paths, or tokens in URLs or ordinary
 headers. Authentication and every object operation run inside a pinned Noise
 channel.
@@ -25,6 +26,10 @@ Record the printed fingerprint through a trusted out-of-band channel. Back up
 the complete data directory, especially `server-identity.key`; identity loss
 is a disaster-recovery event and clients must reject the replacement key.
 
-This phase stores only opaque ciphertext blobs. End-to-end vault encryption and
-the encrypted commit graph are supplied by the client/core phase; do not use a
-development build for production data.
+The service stores opaque ciphertext blobs plus deterministic signed commit
+records. It validates device signatures, parent existence, per-device sequence,
+and limits in one SQLite transaction, while never decrypting commit bodies or
+interpreting paths. Exact duplicate commits are idempotent and concurrent
+branches remain separate heads until a client submits a multi-parent merge.
+
+This is still a development build and must not protect production data.

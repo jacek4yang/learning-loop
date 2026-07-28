@@ -116,6 +116,25 @@ pub enum Request {
         /// Maximum returned bytes.
         maximum_bytes: u32,
     },
+    /// Atomically validates and inserts one opaque signed commit.
+    PutCommit {
+        /// Exact deterministic signed commit record.
+        signed_commit: Vec<u8>,
+    },
+    /// Fetches one exact signed commit record.
+    GetCommit {
+        /// Commit identifier.
+        commit_id: [u8; 32],
+    },
+    /// Fetches the current concurrent head set.
+    GetHeads,
+    /// Fetches a bounded parents-before-children change batch.
+    GetChanges {
+        /// Commit IDs already present on the client.
+        known_commit_ids: Vec<[u8; 32]>,
+        /// Requested record count, bounded by the protocol.
+        maximum_commits: u16,
+    },
     /// Liveness request inside an authenticated channel.
     Ping,
 }
@@ -128,6 +147,8 @@ pub enum Response {
     Authenticated {
         /// Whether this session has a registered, non-revoked device.
         device_authenticated: bool,
+        /// Persistent vault identifier revealed only after password proof.
+        vault_id: [u8; 16],
     },
     /// Device registration or reauthorization succeeded.
     DeviceRegistered,
@@ -162,6 +183,27 @@ pub enum Response {
         complete: bool,
         /// Ciphertext bytes.
         chunk: Vec<u8>,
+    },
+    /// Commit insertion succeeded, including an exact idempotent duplicate.
+    CommitStored {
+        /// Accepted commit ID.
+        commit_id: [u8; 32],
+        /// Current sorted head set after acceptance.
+        heads: Vec<[u8; 32]>,
+    },
+    /// One exact deterministic signed commit record.
+    CommitRecord {
+        /// Signed commit bytes.
+        signed_commit: Vec<u8>,
+    },
+    /// Current sorted head set.
+    Heads(Vec<[u8; 32]>),
+    /// Bounded parents-before-children signed records.
+    Changes {
+        /// Exact signed commit records.
+        commits: Vec<Vec<u8>>,
+        /// True when another request is required.
+        has_more: bool,
     },
     /// Liveness response.
     Pong,
@@ -214,6 +256,12 @@ pub enum ErrorCode {
     RateLimited = 13,
     /// Safe generic internal failure.
     TemporarilyUnavailable = 14,
+    /// One or more commit parents are not present.
+    MissingParent = 15,
+    /// Commit was not found.
+    CommitNotFound = 16,
+    /// Commit ID or device sequence conflicts with different immutable data.
+    CommitConflict = 17,
 }
 
 impl TryFrom<u16> for ErrorCode {
@@ -235,6 +283,9 @@ impl TryFrom<u16> for ErrorCode {
             12 => Ok(Self::InsufficientStorage),
             13 => Ok(Self::RateLimited),
             14 => Ok(Self::TemporarilyUnavailable),
+            15 => Ok(Self::MissingParent),
+            16 => Ok(Self::CommitNotFound),
+            17 => Ok(Self::CommitConflict),
             _ => Err(()),
         }
     }

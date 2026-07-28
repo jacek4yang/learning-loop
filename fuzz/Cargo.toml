@@ -1,0 +1,47 @@
+[package]
+name = "ll-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+ll-canonical = { path = "../crates/ll-canonical" }
+ll-crypto = { path = "../crates/ll-crypto" }
+ll-protocol = { path = "../crates/ll-protocol" }
+ll-versioning = { path = "../crates/ll-versioning" }
+zeroize = "1.9.0"
+
+[[bin]]
+name = "protocol_decoders"
+path = "fuzz_targets/protocol_decoders.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "commit_decoders"
+path = "fuzz_targets/commit_decoders.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "portable_path"
+path = "fuzz_targets/portable_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encrypted_manifest"
+path = "fuzz_targets/encrypted_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

@@ -107,6 +107,10 @@ new device may request registration only after the password proof succeeds.
 Authentication failures use a single error class, bounded exponential delay,
 and no account or vault oracle.
 
+After a valid password proof, the encrypted `authenticated` response returns
+the persistent random `vault_id`. It is not present in bootstrap and is never
+exposed before authentication.
+
 ## Transport envelope
 
 The HTTP body is:
@@ -145,7 +149,7 @@ state-restoration bug fails closed.
 
 ## Operations
 
-The phase-1 object service implements:
+The authenticated object service implements:
 
 ```text
 authenticate
@@ -159,7 +163,7 @@ get_blob
 ping
 ```
 
-Phase 2 extends protocol version 1 with:
+Phase 2 adds:
 
 ```text
 put_commit
@@ -171,8 +175,8 @@ get_changes
 Blob begin is naturally idempotent by device, expected size, and BLAKE3 hash.
 Upload chunks carry an exact expected offset; reconnecting clients repeat begin
 to learn the durable offset. Commit-graph mutations added in phase 2 carry
-persistent idempotency identifiers and return the original result for exact
-duplicates.
+content-derived commit IDs and return the original result for exact duplicate
+records.
 
 ## Commit acceptance
 
@@ -181,8 +185,8 @@ Within one SQLite transaction the server:
 1. confirms the session and device remain authorized;
 2. enforces size and sequence limits;
 3. recomputes the deterministic commit ID;
-4. verifies the device signature;
-5. checks every parent exists, unless the commit is the first root;
+4. verifies the authenticated device's Ed25519 signature;
+5. checks every parent exists, unless the commit is the single first root;
 6. requires the device sequence to be the next value or an exact idempotent
    duplicate;
 7. inserts the immutable commit;
@@ -190,6 +194,8 @@ Within one SQLite transaction the server:
 9. records the idempotent result.
 
 The server never decrypts the commit body or interprets file operations.
+Change batches are bounded, ordered by graph generation and then commit ID, and
+therefore always return parents before children.
 
 ## Reconnect and resumption
 

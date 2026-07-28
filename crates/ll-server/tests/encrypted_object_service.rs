@@ -2,9 +2,10 @@ use std::net::SocketAddr;
 
 use ed25519_dalek::{Signer, SigningKey};
 use ll_crypto::{
-    Argon2Policy, ServerAuthKey, authentication_context, build_initiator,
-    decrypt_transport_records, derive_server_auth_key, device_auth_signature_context,
-    encrypt_transport_records, password_proof, registration_signature_context,
+    Argon2Policy, ObjectType, ServerAuthKey, VaultMasterKey, VaultSubkeys, authentication_context,
+    build_initiator, decrypt_transport_records, derive_server_auth_key,
+    device_auth_signature_context, encrypt_object, encrypt_transport_records, password_proof,
+    registration_signature_context,
 };
 use ll_protocol::{
     AuthChallenge, Bootstrap, ClientMessage, ErrorCode, MAX_HANDSHAKE_BYTES, MAX_HTTP_BODY_BYTES,
@@ -14,6 +15,10 @@ use ll_protocol::{
 use ll_server::LearningLoopServer;
 use ll_server::config::ServerConfig;
 use ll_testkit::{random_device_signing_key, random_test_password, test_uuid};
+use ll_versioning::{
+    CommitBody, SignedCommit, UnsignedCommit, decode_signed_commit, encode_commit_body,
+    encode_signed_commit,
+};
 use snow::TransportState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -134,19 +139,23 @@ impl ClientSession {
         response
     }
 
-    async fn authenticate_new(&mut self, authentication_key: &ServerAuthKey) {
+    async fn authenticate_new(&mut self, authentication_key: &ServerAuthKey) -> [u8; 16] {
         let proof = password_proof(authentication_key, &self.authentication_context);
-        assert_eq!(
-            self.send(Request::Authenticate {
+        let response = self
+            .send(Request::Authenticate {
                 proof,
                 device_id: None,
                 device_signature: None,
             })
-            .await,
-            Response::Authenticated {
-                device_authenticated: false
-            }
-        );
+            .await;
+        let Response::Authenticated {
+            device_authenticated: false,
+            vault_id,
+        } = response
+        else {
+            panic!("new-device password authentication must return the vault ID");
+        };
+        vault_id
     }
 
     async fn authenticate_existing(
@@ -154,22 +163,26 @@ impl ClientSession {
         authentication_key: &ServerAuthKey,
         device_id: [u8; 16],
         signing_key: &SigningKey,
-    ) {
+    ) -> [u8; 16] {
         let proof = password_proof(authentication_key, &self.authentication_context);
         let signature = signing_key
             .sign(&device_auth_signature_context(&self.authentication_context))
             .to_bytes();
-        assert_eq!(
-            self.send(Request::Authenticate {
+        let response = self
+            .send(Request::Authenticate {
                 proof,
                 device_id: Some(device_id),
                 device_signature: Some(signature),
             })
-            .await,
-            Response::Authenticated {
-                device_authenticated: true
-            }
-        );
+            .await;
+        let Response::Authenticated {
+            device_authenticated: true,
+            vault_id,
+        } = response
+        else {
+            panic!("existing-device authentication must return the vault ID");
+        };
+        vault_id
     }
 }
 
@@ -198,14 +211,24 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
             .await,
         Response::Error(ErrorCode::DeviceRequired)
     );
-    primary.authenticate_new(&authentication_key).await;
+    let vault_id = primary.authenticate_new(&authentication_key).await;
     let device = register_test_device(&mut primary).await;
 
     let mut secondary = ClientSession::connect(service.address, &bootstrap).await;
-    secondary
+    let authenticated_vault = secondary
         .authenticate_existing(&authentication_key, device.id, &device.signing_key)
         .await;
+    assert_eq!(authenticated_vault, vault_id);
 
+    let post_revoke_commit = assert_commit_graph(
+        service.address,
+        &bootstrap,
+        &authentication_key,
+        vault_id,
+        &mut primary,
+        &device,
+    )
+    .await;
     assert_resumable_blob_round_trip(&mut primary).await;
     assert_replay_is_rejected(&mut secondary).await;
     assert_revocation_is_immediate(
@@ -214,6 +237,7 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
         &authentication_key,
         &device,
         &mut primary,
+        post_revoke_commit,
     )
     .await;
     assert_wrong_password_closes_session(service.address, &bootstrap, challenge_policy).await;
@@ -335,6 +359,212 @@ async fn assert_resumable_blob_round_trip(primary: &mut ClientSession) {
     );
 }
 
+async fn assert_commit_graph(
+    address: SocketAddr,
+    bootstrap: &Bootstrap,
+    authentication_key: &ServerAuthKey,
+    vault_id: [u8; 16],
+    primary: &mut ClientSession,
+    primary_device: &TestDevice,
+) -> Vec<u8> {
+    let subkeys = VaultMasterKey::generate()
+        .unwrap()
+        .derive_subkeys(&vault_id)
+        .unwrap();
+    let (root_id, primary_branch) =
+        establish_root_and_primary_branch(vault_id, primary_device, &subkeys, primary).await;
+
+    let (mut second_session, second_device) =
+        register_additional_device(address, bootstrap, authentication_key, vault_id).await;
+    let second_branch = make_commit(vault_id, &second_device, 1, vec![root_id], 5, &subkeys);
+    assert_commit_stored(&mut second_session, &second_branch).await;
+    let (mut third_session, third_device) =
+        register_additional_device(address, bootstrap, authentication_key, vault_id).await;
+    let third_branch = make_commit(vault_id, &third_device, 1, vec![root_id], 6, &subkeys);
+    assert_commit_stored(&mut third_session, &third_branch).await;
+
+    let mut branch_ids = vec![
+        decode_signed_commit(&primary_branch).unwrap().commit_id,
+        decode_signed_commit(&second_branch).unwrap().commit_id,
+        decode_signed_commit(&third_branch).unwrap().commit_id,
+    ];
+    branch_ids.sort_unstable();
+    assert_eq!(
+        primary.send(Request::GetHeads).await,
+        Response::Heads(branch_ids.clone())
+    );
+    let merge = make_commit(vault_id, primary_device, 3, branch_ids.clone(), 7, &subkeys);
+    assert_commit_stored(primary, &merge).await;
+    let merge_id = decode_signed_commit(&merge).unwrap().commit_id;
+    assert_eq!(
+        primary.send(Request::GetHeads).await,
+        Response::Heads(vec![merge_id])
+    );
+    assert_eq!(
+        primary
+            .send(Request::GetCommit {
+                commit_id: merge_id,
+            })
+            .await,
+        Response::CommitRecord {
+            signed_commit: merge.clone(),
+        }
+    );
+
+    assert_change_pagination(primary, root_id, merge).await;
+
+    let skipped_sequence = make_commit(vault_id, primary_device, 5, vec![merge_id], 8, &subkeys);
+    assert_eq!(
+        primary
+            .send(Request::PutCommit {
+                signed_commit: skipped_sequence,
+            })
+            .await,
+        Response::Error(ErrorCode::SequenceMismatch)
+    );
+    make_commit(vault_id, primary_device, 4, vec![merge_id], 9, &subkeys)
+}
+
+async fn establish_root_and_primary_branch(
+    vault_id: [u8; 16],
+    device: &TestDevice,
+    subkeys: &VaultSubkeys,
+    primary: &mut ClientSession,
+) -> ([u8; 32], Vec<u8>) {
+    let root = make_commit(vault_id, device, 1, Vec::new(), 1, subkeys);
+    assert_commit_stored(primary, &root).await;
+    assert_commit_stored(primary, &root).await;
+    let mut forged = decode_signed_commit(&root).unwrap();
+    forged.signature[0] ^= 1;
+    assert_eq!(
+        primary
+            .send(Request::PutCommit {
+                signed_commit: encode_signed_commit(&forged).unwrap(),
+            })
+            .await,
+        Response::Error(ErrorCode::InvalidSignature)
+    );
+    assert_eq!(
+        primary
+            .send(Request::PutCommit {
+                signed_commit: make_commit(vault_id, device, 2, vec![[0xf1; 32]], 2, subkeys,),
+            })
+            .await,
+        Response::Error(ErrorCode::MissingParent)
+    );
+    let root_id = decode_signed_commit(&root).unwrap().commit_id;
+    let branch = make_commit(vault_id, device, 2, vec![root_id], 3, subkeys);
+    assert_commit_stored(primary, &branch).await;
+    assert_eq!(
+        primary
+            .send(Request::PutCommit {
+                signed_commit: make_commit(vault_id, device, 2, vec![root_id], 4, subkeys),
+            })
+            .await,
+        Response::Error(ErrorCode::SequenceMismatch)
+    );
+    (root_id, branch)
+}
+
+async fn assert_change_pagination(primary: &mut ClientSession, root_id: [u8; 32], merge: Vec<u8>) {
+    let Response::Changes {
+        commits,
+        has_more: true,
+    } = primary
+        .send(Request::GetChanges {
+            known_commit_ids: vec![root_id],
+            maximum_commits: 3,
+        })
+        .await
+    else {
+        panic!("first change page must contain the three concurrent branches");
+    };
+    let mut known = vec![root_id];
+    known.extend(
+        commits
+            .iter()
+            .map(|record| decode_signed_commit(record).unwrap().commit_id),
+    );
+    assert_eq!(
+        primary
+            .send(Request::GetChanges {
+                known_commit_ids: known,
+                maximum_commits: 3,
+            })
+            .await,
+        Response::Changes {
+            commits: vec![merge],
+            has_more: false,
+        }
+    );
+}
+
+async fn register_additional_device(
+    address: SocketAddr,
+    bootstrap: &Bootstrap,
+    authentication_key: &ServerAuthKey,
+    expected_vault_id: [u8; 16],
+) -> (ClientSession, TestDevice) {
+    let mut session = ClientSession::connect(address, bootstrap).await;
+    assert_eq!(
+        session.authenticate_new(authentication_key).await,
+        expected_vault_id
+    );
+    let device = register_test_device(&mut session).await;
+    (session, device)
+}
+
+async fn assert_commit_stored(session: &mut ClientSession, record: &[u8]) {
+    let commit_id = decode_signed_commit(record).unwrap().commit_id;
+    assert!(matches!(
+        session
+            .send(Request::PutCommit {
+                signed_commit: record.to_vec(),
+            })
+            .await,
+        Response::CommitStored {
+            commit_id: accepted,
+            ..
+        } if accepted == commit_id
+    ));
+}
+
+fn make_commit(
+    vault_id: [u8; 16],
+    device: &TestDevice,
+    device_sequence: u64,
+    mut parents: Vec<[u8; 32]>,
+    marker: u8,
+    subkeys: &VaultSubkeys,
+) -> Vec<u8> {
+    parents.sort_unstable();
+    let body = encode_commit_body(&CommitBody {
+        logical_timestamp: u64::from(marker),
+        operations: Vec::new(),
+        manifest_root: *blake3::hash(&[marker, 1]).as_bytes(),
+        manifest_blob_id: *blake3::hash(&[marker, 2]).as_bytes(),
+        merge_base: None,
+        conflict_objects: Vec::new(),
+    })
+    .unwrap();
+    let encrypted_body =
+        encrypt_object(subkeys, vault_id, test_uuid(), 1, ObjectType::Commit, &body).unwrap();
+    encode_signed_commit(
+        &SignedCommit::create(
+            UnsignedCommit {
+                vault_id,
+                parents,
+                device_id: device.id,
+                device_sequence,
+                encrypted_body,
+            },
+            &device.signing_key,
+        )
+        .unwrap(),
+    )
+    .unwrap()
+}
+
 async fn assert_replay_is_rejected(session: &mut ClientSession) {
     let replayed = session.prepare(Request::Ping);
     assert_eq!(session.send_prepared(&replayed).await, Response::Pong);
@@ -349,6 +579,7 @@ async fn assert_revocation_is_immediate(
     authentication_key: &ServerAuthKey,
     device: &TestDevice,
     primary: &mut ClientSession,
+    post_revoke_commit: Vec<u8>,
 ) {
     let mut revoked_session = ClientSession::connect(address, bootstrap).await;
     revoked_session
@@ -363,7 +594,11 @@ async fn assert_revocation_is_immediate(
         Response::DeviceRevoked
     );
     assert_eq!(
-        revoked_session.send(Request::Ping).await,
+        revoked_session
+            .send(Request::PutCommit {
+                signed_commit: post_revoke_commit,
+            })
+            .await,
         Response::Error(ErrorCode::DeviceRevoked)
     );
 }

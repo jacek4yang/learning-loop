@@ -40,6 +40,18 @@ pub enum StorageError {
     /// Ciphertext length or hash differs.
     #[error("ciphertext integrity check failed")]
     IntegrityFailure,
+    /// Commit parent is absent.
+    #[error("commit parent is missing")]
+    MissingParent,
+    /// Commit is absent.
+    #[error("commit was not found")]
+    CommitNotFound,
+    /// Commit identity or device sequence conflicts with immutable state.
+    #[error("commit conflicts with immutable state")]
+    CommitConflict,
+    /// Commit vault, device, root, or sequence rule is invalid.
+    #[error("commit state transition is invalid")]
+    InvalidCommit,
     /// Stored server access password verifier differs.
     #[error("configured server password does not match persistent verifier")]
     PasswordMismatch,
@@ -57,10 +69,13 @@ impl StorageError {
             Self::DeviceRevoked => ErrorCode::DeviceRevoked,
             Self::UploadNotFound => ErrorCode::UploadNotFound,
             Self::BlobNotFound => ErrorCode::BlobNotFound,
-            Self::OffsetMismatch => ErrorCode::SequenceMismatch,
+            Self::OffsetMismatch | Self::InvalidCommit => ErrorCode::SequenceMismatch,
             Self::LimitExceeded => ErrorCode::RequestTooLarge,
             Self::InsufficientStorage => ErrorCode::InsufficientStorage,
             Self::IntegrityFailure | Self::CorruptMetadata => ErrorCode::IntegrityFailure,
+            Self::MissingParent => ErrorCode::MissingParent,
+            Self::CommitNotFound => ErrorCode::CommitNotFound,
+            Self::CommitConflict => ErrorCode::CommitConflict,
             Self::PasswordMismatch => ErrorCode::AuthenticationFailed,
             Self::Database(_) | Self::Io(_) | Self::Join(_) | Self::Crypto(_) => {
                 ErrorCode::TemporarilyUnavailable

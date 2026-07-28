@@ -1,5 +1,6 @@
 mod blob;
 mod schema;
+mod version;
 
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -29,6 +30,7 @@ const META_ARGON_MEMORY: &str = "argon2_memory_kib";
 const META_ARGON_ITERATIONS: &str = "argon2_iterations";
 const META_ARGON_PARALLELISM: &str = "argon2_parallelism";
 const META_MIGRATION_VERSION: &str = "migration_version";
+const CURRENT_MIGRATION_VERSION: u32 = 2;
 
 type UploadLocks = Arc<Mutex<HashMap<[u8; 16], Weak<AsyncMutex<()>>>>>;
 
@@ -39,6 +41,7 @@ pub struct Storage {
     database_path: PathBuf,
     objects_dir: PathBuf,
     uploads_dir: PathBuf,
+    vault_id: [u8; 16],
     upload_locks: UploadLocks,
 }
 
@@ -97,11 +100,13 @@ impl Storage {
             let mut connection = open_connection(&database_path)?;
             schema::migrate(&mut connection)?;
             let transaction = connection.transaction()?;
+            validate_migration_version(&transaction)?;
 
             let instance_id =
                 get_or_create_fixed::<16>(&transaction, META_INSTANCE_ID, random_array::<16>)?;
             let vault_id =
                 get_or_create_fixed::<16>(&transaction, META_VAULT_ID, random_array::<16>)?;
+            version::repair_heads(&transaction, &vault_id)?;
             let authentication_salt =
                 get_or_create_fixed::<16>(&transaction, META_AUTH_SALT, random_array::<16>)?;
             let policy = load_or_create_policy(&transaction)?;
@@ -122,7 +127,11 @@ impl Storage {
                     &server_auth_verifier(&authentication_key),
                 )?;
             }
-            set_meta(&transaction, META_MIGRATION_VERSION, &1_u32.to_be_bytes())?;
+            set_meta(
+                &transaction,
+                META_MIGRATION_VERSION,
+                &CURRENT_MIGRATION_VERSION.to_be_bytes(),
+            )?;
             transaction.commit()?;
 
             Ok(InitializedStorage {
@@ -131,6 +140,7 @@ impl Storage {
                     database_path,
                     objects_dir,
                     uploads_dir,
+                    vault_id,
                     upload_locks: Arc::new(Mutex::new(HashMap::new())),
                 },
                 instance_id,
@@ -147,6 +157,12 @@ impl Storage {
     #[must_use]
     pub fn data_dir(&self) -> &Path {
         &self.data_dir
+    }
+
+    /// Returns the persistent opaque vault identifier.
+    #[must_use]
+    pub const fn vault_id(&self) -> [u8; 16] {
+        self.vault_id
     }
 
     /// Returns one device, including revoked state.
@@ -343,6 +359,21 @@ fn set_meta(transaction: &Transaction<'_>, key: &str, value: &[u8]) -> Result<()
     Ok(())
 }
 
+fn validate_migration_version(transaction: &Transaction<'_>) -> Result<(), StorageError> {
+    let Some(value) = get_meta(transaction, META_MIGRATION_VERSION)? else {
+        return Ok(());
+    };
+    let bytes: [u8; 4] = value
+        .try_into()
+        .map_err(|_| StorageError::CorruptMetadata)?;
+    let version = u32::from_be_bytes(bytes);
+    if (1..=CURRENT_MIGRATION_VERSION).contains(&version) {
+        Ok(())
+    } else {
+        Err(StorageError::CorruptMetadata)
+    }
+}
+
 fn get_or_create_fixed<const N: usize>(
     transaction: &Transaction<'_>,
     key: &str,
@@ -431,8 +462,9 @@ fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 #[cfg(test)]
 mod tests {
     use ll_testkit::random_test_password;
+    use rusqlite::params;
 
-    use super::Storage;
+    use super::{DATABASE_FILE, META_MIGRATION_VERSION, Storage};
 
     #[tokio::test]
     async fn metadata_and_password_verifier_survive_restart() {
@@ -450,5 +482,91 @@ mod tests {
             .unwrap();
         assert_eq!(second.instance_id, instance);
         assert_eq!(second.vault_id, vault);
+    }
+
+    #[tokio::test]
+    async fn refuses_unknown_future_schema() {
+        let directory = tempfile::tempdir().unwrap();
+        let password = random_test_password().unwrap();
+        drop(
+            Storage::initialize(directory.path().to_owned(), password.clone())
+                .await
+                .unwrap(),
+        );
+        let connection = rusqlite::Connection::open(directory.path().join(DATABASE_FILE)).unwrap();
+        connection
+            .execute(
+                "UPDATE metadata SET value = ?2 WHERE key = ?1",
+                params![META_MIGRATION_VERSION, 999_u32.to_be_bytes()],
+            )
+            .unwrap();
+        drop(connection);
+
+        let error = Storage::initialize(directory.path().to_owned(), password)
+            .await
+            .err()
+            .unwrap();
+        assert!(matches!(error, crate::error::StorageError::CorruptMetadata));
+    }
+
+    #[tokio::test]
+    async fn rebuilds_head_index_from_immutable_parent_edges() {
+        let directory = tempfile::tempdir().unwrap();
+        let password = random_test_password().unwrap();
+        let first = Storage::initialize(directory.path().to_owned(), password.clone())
+            .await
+            .unwrap();
+        let vault_id = first.vault_id;
+        let device_id = [1; 16];
+        first
+            .storage
+            .register_device(device_id, [2; 32], Vec::new())
+            .await
+            .unwrap();
+        drop(first);
+
+        let mut connection =
+            rusqlite::Connection::open(directory.path().join(DATABASE_FILE)).unwrap();
+        let transaction = connection.transaction().unwrap();
+        for (commit_id, sequence, generation) in [
+            ([10_u8; 32], 1_i64, 0_i64),
+            ([11; 32], 2, 1),
+            ([12; 32], 3, 1),
+        ] {
+            transaction
+                .execute(
+                    "INSERT INTO commits
+                       (commit_id, vault_id, device_id, device_sequence, generation,
+                        signed_record, inserted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)",
+                    params![
+                        commit_id.as_slice(),
+                        vault_id.as_slice(),
+                        device_id.as_slice(),
+                        sequence,
+                        generation,
+                        vec![u8::try_from(sequence).unwrap()],
+                    ],
+                )
+                .unwrap();
+        }
+        for child in [[11_u8; 32], [12; 32]] {
+            transaction
+                .execute(
+                    "INSERT INTO commit_parents(commit_id, parent_id) VALUES (?1, ?2)",
+                    params![child.as_slice(), [10_u8; 32].as_slice()],
+                )
+                .unwrap();
+        }
+        transaction.commit().unwrap();
+        drop(connection);
+
+        let restarted = Storage::initialize(directory.path().to_owned(), password)
+            .await
+            .unwrap();
+        assert_eq!(
+            restarted.storage.heads().await.unwrap(),
+            vec![[11_u8; 32], [12; 32]]
+        );
     }
 }

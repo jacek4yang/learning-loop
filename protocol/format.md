@@ -52,12 +52,35 @@ The encrypted object envelope is a deterministic CBOR map:
 AAD is the deterministic array:
 
 ```text
-[protocol_version, vault_id, object_id, revision, object_type, cipher_suite]
+[protocol_version, vault_id, object_id, revision, object_type, cipher_suite, purpose]
 ```
+
+`purpose` is the byte string `payload` for content encryption and
+`wrapped-dek` for DEK wrapping. This prevents a valid ciphertext from being
+replayed between the two AEAD contexts.
 
 The payload is encrypted with a fresh random DEK using
 XChaCha20-Poly1305. The DEK is independently wrapped with the VMK-derived key
 for its object type. Both nonces must be fresh random 192-bit values.
+
+## Vault key envelope
+
+The client password is domain-separated and processed with Argon2id. Its
+persisted, non-secret envelope is:
+
+| Key | Field | Type |
+| --- | --- | --- |
+| 0 | protocol version | unsigned integer |
+| 1 | Argon2id salt | 16-byte string |
+| 2 | memory cost | unsigned KiB |
+| 3 | iteration count | unsigned integer |
+| 4 | parallelism | unsigned integer |
+| 5 | VMK wrapping nonce | 24-byte string |
+| 6 | wrapped VMK | 48-byte string |
+
+The AEAD AAD binds the envelope label, protocol version, salt, all Argon2id
+parameters, and cipher suite. A wrong password and an altered envelope both
+return the same authenticated-encryption failure.
 
 ## Commit envelope
 
@@ -115,6 +138,19 @@ rename
 delete_tombstone
 merge
 ```
+
+Manifests are sorted by stable object ID and map each object to its revision,
+encrypted path blob, optional content and metadata blobs, canonical plaintext
+hash, and explicit tombstone state. The manifest root is:
+
+```text
+BLAKE3("learning-loop/manifest-root/v1" || deterministic_manifest)
+```
+
+The normative known-answer values for VMK wrapping, encrypted objects,
+manifests, commit bodies, commit IDs, and signatures are in
+`test-vectors/encrypted-versioning-v1.json`. Its fixed values are public test
+material and must never be used as credentials or production keys.
 
 ## Text canonicalization
 

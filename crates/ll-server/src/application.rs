@@ -73,6 +73,16 @@ impl Application {
                 offset,
                 maximum_bytes,
             } => self.get_blob(session, blob_id, offset, maximum_bytes).await,
+            Request::PutCommit { signed_commit } => self.put_commit(session, signed_commit).await,
+            Request::GetCommit { commit_id } => self.get_commit(session, commit_id).await,
+            Request::GetHeads => self.get_heads(session).await,
+            Request::GetChanges {
+                known_commit_ids,
+                maximum_commits,
+            } => {
+                self.get_changes(session, known_commit_ids, maximum_commits)
+                    .await
+            }
             Request::Ping => self.ping(session).await,
         }
     }
@@ -178,6 +188,65 @@ impl Application {
         success(Response::Pong)
     }
 
+    async fn put_commit(&self, session: &Session, signed_record: Vec<u8>) -> ApplicationResult {
+        let device_id = match self.require_device(session).await {
+            Ok(device_id) => device_id,
+            Err(result) => return result,
+        };
+        let Ok(commit) = ll_versioning::decode_signed_commit(&signed_record) else {
+            return error(ErrorCode::IntegrityFailure, false);
+        };
+        let device = match self.storage.require_active_device(device_id).await {
+            Ok(device) => device,
+            Err(failure) => return storage_error(&failure),
+        };
+        if ll_versioning::verify_signed_commit(&commit, &device.public_key).is_err() {
+            return error(ErrorCode::InvalidSignature, false);
+        }
+        from_storage(
+            self.storage
+                .accept_commit(device_id, commit, signed_record)
+                .await
+                .map(|(commit_id, heads)| Response::CommitStored { commit_id, heads }),
+        )
+    }
+
+    async fn get_commit(&self, session: &Session, commit_id: [u8; 32]) -> ApplicationResult {
+        if let Err(result) = self.require_device(session).await {
+            return result;
+        }
+        from_storage(
+            self.storage
+                .get_commit(commit_id)
+                .await
+                .map(|signed_commit| Response::CommitRecord { signed_commit }),
+        )
+    }
+
+    async fn get_heads(&self, session: &Session) -> ApplicationResult {
+        if let Err(result) = self.require_device(session).await {
+            return result;
+        }
+        from_storage(self.storage.heads().await.map(Response::Heads))
+    }
+
+    async fn get_changes(
+        &self,
+        session: &Session,
+        known_commit_ids: Vec<[u8; 32]>,
+        maximum_commits: u16,
+    ) -> ApplicationResult {
+        if let Err(result) = self.require_device(session).await {
+            return result;
+        }
+        from_storage(
+            self.storage
+                .changes(known_commit_ids, maximum_commits)
+                .await
+                .map(|(commits, has_more)| Response::Changes { commits, has_more }),
+        )
+    }
+
     async fn authenticate(
         &self,
         session: &mut Session,
@@ -207,6 +276,7 @@ impl Application {
                 session.phase = SessionPhase::PasswordAuthenticated;
                 success(Response::Authenticated {
                     device_authenticated: false,
+                    vault_id: self.storage.vault_id(),
                 })
             }
             (Some(device_id), Some(signature)) => {
@@ -226,6 +296,7 @@ impl Application {
                 session.phase = SessionPhase::DeviceAuthenticated(device_id);
                 success(Response::Authenticated {
                     device_authenticated: true,
+                    vault_id: self.storage.vault_id(),
                 })
             }
             _ => error(ErrorCode::AuthenticationFailed, true),
