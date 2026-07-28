@@ -49,5 +49,6 @@ Thumbs.db
 
 # Local audit and mutation-test output
 /mutants.out/
+/semantics.slices.json
 /fuzz/artifacts/
 /fuzz/corpus/

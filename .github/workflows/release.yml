@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  server:
+    name: Server ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: target/x86_64-unknown-linux-gnu/release/ll-server
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary: target/aarch64-unknown-linux-gnu/release/ll-server
+          - name: windows-x86_64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            binary: target/x86_64-pc-windows-msvc/release/ll-server.exe
+          - name: windows-aarch64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            binary: target/aarch64-pc-windows-msvc/release/ll-server.exe
+          - name: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            binary: target/x86_64-apple-darwin/release/ll-server
+          - name: macos-aarch64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            binary: target/aarch64-apple-darwin/release/ll-server
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked -p ll-server --target ${{ matrix.target }}
+      - run: >-
+          node scripts/package-release.mjs
+          --server "${{ matrix.binary }}"
+          --target "${{ matrix.name }}"
+      - uses: anchore/sbom-action@v0
+        with:
+          file: ${{ matrix.binary }}
+          format: cyclonedx-json
+          output-file: release/learning-loop-server-1.0.0-${{ matrix.name }}.cdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.name }}
+          path: |
+            release/learning-loop-server-*.zip
+            release/learning-loop-server-*.cdx.json
+          if-no-files-found: error
+
+  plugin:
+    name: Architecture-independent plugin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir plugin build
+      - run: node scripts/package-release.mjs --plugin
+      - uses: anchore/sbom-action@v0
+        with:
+          path: plugin
+          format: cyclonedx-json
+          output-file: release/learning-loop-plugin-1.0.0.cdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin
+          path: |
+            release/learning-loop-plugin-*.zip
+            release/learning-loop-plugin-*.cdx.json
+          if-no-files-found: error
+
+  publish:
+    name: Checksums, provenance, and GitHub release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [server, plugin]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create SHA-256 manifest
+        working-directory: release
+        run: find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: release/*
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: release/*
+          fail_on_unmatched_files: true

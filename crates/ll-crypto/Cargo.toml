@@ -14,7 +14,7 @@ ed25519-dalek.workspace = true
 getrandom.workspace = true
 hmac.workspace = true
 hkdf.workspace = true
-ll-protocol = { path = "../ll-protocol", version = "0.1.0" }
+ll-protocol = { path = "../ll-protocol", version = "1.0.0" }
 minicbor.workspace = true
 sha2.workspace = true
 snow.workspace = true
@@ -25,7 +25,7 @@ zeroize.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
-ll-testkit = { path = "../ll-testkit", version = "0.1.0" }
+ll-testkit = { path = "../ll-testkit", version = "1.0.0" }
 serde_json.workspace = true
 tempfile.workspace = true
 

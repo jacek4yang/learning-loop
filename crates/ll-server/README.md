@@ -6,7 +6,21 @@ never accepts credentials, vault names, paths, or tokens in URLs or ordinary
 headers. Authentication and every object operation run inside a pinned Noise
 channel.
 
-## Run
+## Run from a release
+
+Verify the release-level `SHA256SUMS`, extract the package for the host
+architecture, and verify the archive's internal payload checksums. Copy
+`config.example.toml` outside the application directory as `config.toml`, then
+set the referenced environment variable and start the single binary:
+
+```powershell
+$env:LEARNING_LOOP_SERVER_PASSWORD = '<generate a strong unique value>'
+.\ll-server.exe C:\absolute\path\to\config.toml
+```
+
+On Linux or macOS, use `./ll-server /absolute/path/to/config.toml`.
+
+## Run from source
 
 Copy `config.example.toml` from the repository root and set the password
 through the referenced environment variable:
@@ -32,4 +46,7 @@ and limits in one SQLite transaction, while never decrypting commit bodies or
 interpreting paths. Exact duplicate commits are idempotent and concurrent
 branches remain separate heads until a client submits a multi-parent merge.
 
-This is still a development build and must not protect production data.
+Back up the complete stopped-server data directory, not only SQLite. See the
+packaged README links in the repository documentation for installation,
+operations, recovery, and the exact real-host validation status. Keep an
+independent backup of every important Obsidian Vault.

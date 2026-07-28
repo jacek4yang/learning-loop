@@ -568,7 +568,7 @@ dependencies = [
 
 [[package]]
 name = "ll-canonical"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "thiserror",
  "unicode-casefold",
@@ -577,7 +577,7 @@ dependencies = [
 
 [[package]]
 name = "ll-crypto"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "argon2",
  "base32ct",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "ll-protocol"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "minicbor",
  "thiserror",
@@ -619,7 +619,7 @@ dependencies = [
 
 [[package]]
 name = "ll-versioning"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "ed25519-dalek",

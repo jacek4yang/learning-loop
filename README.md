@@ -5,11 +5,11 @@ cross-platform Obsidian learning-workflow plugin. The repository is a monorepo
 for the Rust server, shared protocol and cryptography crates, a portable
 TypeScript plugin, and a WebAssembly client core.
 
-The repository currently contains the authenticated Rust object service,
-encrypted commit DAG, native/WASM client core, and the v0.3 desktop Obsidian
-synchronization implementation. It remains a development build until the
-cross-platform evidence matrix and v1.0 release gates are complete; do not use
-it as the only copy of production data.
+Version 1.0 contains the authenticated Rust object service, encrypted commit
+DAG, native/WASM client core, desktop/Android-compatible synchronization, and
+Markdown-first learning workflows. Automated release gates are complete.
+Several real Obsidian host/device rows remain explicitly unrun; keep an
+independent Vault backup and read the validation report before relying on it.
 
 ## Security boundary
 
@@ -41,7 +41,11 @@ manifest and stylesheet. See [docs/synchronization.md](docs/synchronization.md)
 for the sync state machine,
 [docs/learning-workflows.md](docs/learning-workflows.md) for the Markdown-first
 learning model, [docs/test-matrix.md](docs/test-matrix.md) for adversarial
-coverage and platform evidence, [CONTRIBUTING.md](CONTRIBUTING.md) for development rules, and
+coverage and platform evidence,
+[docs/installation.md](docs/installation.md) for installation and recovery,
+[docs/operations.md](docs/operations.md) for server administration,
+[docs/release-validation.md](docs/release-validation.md) for passed and unrun
+release checks, [CONTRIBUTING.md](CONTRIBUTING.md) for development rules, and
 [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
