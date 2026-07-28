@@ -472,4 +472,72 @@ mod tests {
             hash
         );
     }
+
+    #[tokio::test]
+    async fn corrupt_hash_out_of_order_empty_chunk_and_missing_temporary_fail_closed() {
+        let directory = tempfile::tempdir().unwrap();
+        let initialized =
+            Storage::initialize(directory.path().to_owned(), random_test_password().unwrap())
+                .await
+                .unwrap();
+        let device_id = test_uuid();
+        initialized
+            .storage
+            .register_device(device_id, [9; 32], vec![10])
+            .await
+            .unwrap();
+
+        let bytes = b"opaque";
+        let wrong_hash = [0x55_u8; 32];
+        let (upload_id, _) = initialized
+            .storage
+            .begin_upload(device_id, u64::try_from(bytes.len()).unwrap(), wrong_hash)
+            .await
+            .unwrap();
+        assert!(matches!(
+            initialized
+                .storage
+                .append_upload_chunk(device_id, upload_id, 1, bytes.to_vec())
+                .await,
+            Err(StorageError::OffsetMismatch)
+        ));
+        assert!(matches!(
+            initialized
+                .storage
+                .append_upload_chunk(device_id, upload_id, 0, Vec::new())
+                .await,
+            Err(StorageError::LimitExceeded)
+        ));
+        initialized
+            .storage
+            .append_upload_chunk(device_id, upload_id, 0, bytes.to_vec())
+            .await
+            .unwrap();
+        assert!(matches!(
+            initialized
+                .storage
+                .commit_upload(device_id, upload_id)
+                .await,
+            Err(StorageError::IntegrityFailure)
+        ));
+
+        let expected_hash = *blake3::hash(bytes).as_bytes();
+        let (missing_id, _) = initialized
+            .storage
+            .begin_upload(
+                device_id,
+                u64::try_from(bytes.len()).unwrap(),
+                expected_hash,
+            )
+            .await
+            .unwrap();
+        std::fs::remove_file(initialized.storage.upload_path(&missing_id)).unwrap();
+        assert!(matches!(
+            initialized
+                .storage
+                .append_upload_chunk(device_id, missing_id, 0, bytes.to_vec())
+                .await,
+            Err(StorageError::Io(_))
+        ));
+    }
 }

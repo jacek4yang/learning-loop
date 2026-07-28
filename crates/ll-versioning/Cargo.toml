@@ -18,6 +18,7 @@ uuid.workspace = true
 [dev-dependencies]
 hex.workspace = true
 ll-testkit = { path = "../ll-testkit", version = "0.1.0" }
+proptest.workspace = true
 serde_json.workspace = true
 
 [lints]

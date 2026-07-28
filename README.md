@@ -40,7 +40,8 @@ The plugin production build creates ignored `plugin/main.js` and
 manifest and stylesheet. See [docs/synchronization.md](docs/synchronization.md)
 for the sync state machine,
 [docs/learning-workflows.md](docs/learning-workflows.md) for the Markdown-first
-learning model, [CONTRIBUTING.md](CONTRIBUTING.md) for development rules, and
+learning model, [docs/test-matrix.md](docs/test-matrix.md) for adversarial
+coverage and platform evidence, [CONTRIBUTING.md](CONTRIBUTING.md) for development rules, and
 [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License

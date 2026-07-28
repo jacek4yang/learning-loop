@@ -40,6 +40,12 @@ class TestCore implements PortableCore {
   }
 }
 
+class LargeFileCore extends TestCore {
+  override hash(bytes: Uint8Array): string {
+    return `size-${bytes.length.toString()}`;
+  }
+}
+
 class TestVault implements VaultPort {
   constructor(private readonly files: Map<string, Uint8Array>) {}
 
@@ -168,5 +174,30 @@ describe("reconciliation", () => {
       code: "portable_collision",
       paths: ["Note.md", "note.md"],
     }]);
+  });
+
+  it("scans the required multilingual and 100 MiB+ binary matrix", async () => {
+    const large = new Uint8Array(100 * 1024 * 1024 + 1);
+    large[0] = 0x25;
+    large[large.length - 1] = 0xff;
+    const files = new Map<string, Uint8Array>([
+      ["中文/问题.md", encoder.encode("\uFEFF第一行\r\n第二行\r")],
+      ["日本語/設計.canvas", encoder.encode('{"nodes":[],"edges":[]}')],
+      ["한국어/자료.base", encoder.encode("filters:\n  and: []\n")],
+      ["emoji/🧪 image.png", Uint8Array.of(0x89, 0x50, 0x4e, 0x47)],
+      ["attachments/archive.multi.part.pdf", Uint8Array.of(0x25, 0x50, 0x44, 0x46)],
+      ["attachments/audio.mp3", Uint8Array.of(0x49, 0x44, 0x33)],
+      ["attachments/large.bin", large],
+    ]);
+    const result = await new Reconciler(
+      new TestVault(files),
+      new LargeFileCore(),
+    ).scan(EMPTY_SYNC_STATE);
+    expect(result.issues).toEqual([]);
+    expect(result.operations).toHaveLength(files.size);
+    expect(
+      result.operations.find((operation) => operation.path.endsWith("large.bin"))
+        ?.canonicalHash,
+    ).toBe(`size-${large.length.toString()}`);
   });
 });

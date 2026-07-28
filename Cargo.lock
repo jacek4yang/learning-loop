@@ -1020,6 +1020,7 @@ dependencies = [
  "ll-protocol",
  "ll-testkit",
  "minicbor",
+ "proptest",
  "serde_json",
  "subtle",
  "thiserror",

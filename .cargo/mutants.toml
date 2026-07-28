@@ -1,0 +1,11 @@
+examine_globs = [
+  "crates/ll-canonical/src/*.rs",
+  "crates/ll-protocol/src/*.rs",
+  "crates/ll-versioning/src/*.rs",
+]
+exclude_re = [
+  "impl .*Error",
+  "fn fmt",
+]
+timeout_multiplier = 3.0
+minimum_test_timeout = 30

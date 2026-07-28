@@ -9,7 +9,14 @@ through phase 2:
 - `portable_path`: Unicode normalization, portable validation, and repair
   suggestions;
 - `encrypted_manifest`: VMK/object envelope parsing, corrupted ciphertext, and
-  decrypted manifest/body handoff.
+  decrypted manifest/body handoff;
+- `chunk_reassembly`: hostile blob-chunk response sequences, offsets, totals,
+  completion flags, and bounded concatenation.
+
+The TypeScript `adversarial-merge.test.ts` suite uses `fast-check` for the
+actual plugin conflict-merge implementation. It checks arbitrary base/local/
+remote inputs, symmetry, unchanged-side selection, conflict-marker absence,
+and portable conflict-copy names.
 
 Run them on Linux with nightly Rust:
 
@@ -19,6 +26,7 @@ cargo +nightly fuzz run protocol_decoders
 cargo +nightly fuzz run commit_decoders
 cargo +nightly fuzz run portable_path
 cargo +nightly fuzz run encrypted_manifest
+cargo +nightly fuzz run chunk_reassembly
 ```
 
 `libfuzzer-sys` relies on Rust sanitizer support and cannot execute on the
