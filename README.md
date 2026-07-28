@@ -38,8 +38,10 @@ pnpm build
 The plugin production build creates ignored `plugin/main.js` and
 `plugin/core.wasm`; release packaging adds these to the source-controlled
 manifest and stylesheet. See [docs/synchronization.md](docs/synchronization.md)
-for the sync state machine, [CONTRIBUTING.md](CONTRIBUTING.md) for development
-rules, and [SECURITY.md](SECURITY.md) for vulnerability reporting.
+for the sync state machine,
+[docs/learning-workflows.md](docs/learning-workflows.md) for the Markdown-first
+learning model, [CONTRIBUTING.md](CONTRIBUTING.md) for development rules, and
+[SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 

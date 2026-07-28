@@ -55,3 +55,34 @@
 .learning-loop-mobile-status[data-sync-state="error"] {
   color: var(--text-error);
 }
+
+.learning-loop-review-prompt,
+.learning-loop-review-answer {
+  background: var(--background-secondary);
+  border-radius: var(--radius-m);
+  font-size: var(--font-text-size);
+  margin-block: var(--size-4-3);
+  min-height: 5em;
+  padding: var(--size-4-4);
+  white-space: pre-wrap;
+}
+
+.learning-loop-review-answer {
+  border-inline-start: 4px solid var(--interactive-accent);
+}
+
+.learning-loop-review-actions .setting-item-control {
+  display: grid;
+  gap: var(--size-4-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+
+.learning-loop-review-actions button {
+  min-height: 48px;
+  width: 100%;
+}
+
+.is-mobile .learning-loop-review-actions .setting-item-control {
+  grid-template-columns: 1fr;
+}
