@@ -103,10 +103,47 @@ jobs:
             release/learning-loop-plugin-*.cdx.json
           if-no-files-found: error
 
+  source-sbom:
+    name: Monorepo source SBOM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: mkdir release
+      - run: >-
+          npx --yes @cyclonedx/cdxgen@12.8.2
+          --recurse
+          --output release/learning-loop-source-1.0.0.cdx.json
+          .
+      - name: Remove runner-local path prefixes
+        run: >-
+          node -e "const fs=require('node:fs');
+          const path=require('node:path');
+          const file='release/learning-loop-source-1.0.0.cdx.json';
+          const root=process.cwd().split(path.sep).join('/');
+          fs.writeFileSync(file,
+          fs.readFileSync(file,'utf8').replaceAll(root,'.'))"
+      - name: Require a populated CycloneDX document
+        run: >-
+          node -e "const fs=require('node:fs');
+          const bom=JSON.parse(fs.readFileSync(
+          'release/learning-loop-source-1.0.0.cdx.json','utf8'));
+          if(bom.bomFormat!=='CycloneDX'||!bom.specVersion||
+          !Array.isArray(bom.components)||bom.components.length<1)
+          process.exit(1);
+          console.log('components='+bom.components.length)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-sbom
+          path: release/learning-loop-source-1.0.0.cdx.json
+          if-no-files-found: error
+
   publish:
     name: Checksums, provenance, and GitHub release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [server, plugin]
+    needs: [server, plugin, source-sbom]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
