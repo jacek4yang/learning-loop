@@ -1,0 +1,17 @@
+{
+  "name": "learning-loop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end encrypted Obsidian synchronization and learning workflows",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "pnpm --if-present --recursive build",
+    "lint": "pnpm --if-present --recursive lint",
+    "test": "pnpm --if-present --recursive test",
+    "typecheck": "pnpm --if-present --recursive typecheck"
+  }
+}

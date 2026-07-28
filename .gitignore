@@ -1,0 +1,52 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# JavaScript and TypeScript
+node_modules/
+plugin/main.js
+plugin/*.js.map
+plugin/coverage/
+coverage/
+
+# Generated WebAssembly and release artifacts
+*.wasm
+/release/*
+!/release/.gitkeep
+
+# Server runtime data and databases
+/data/
+**/server-data/
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+
+# Keys, credentials, local configuration, and environment files
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+config.toml
+secrets/
+
+# Test vault contents are local-only
+/plugin/test-vault/*
+!/plugin/test-vault/.gitkeep
+
+# Tool and editor state
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.log
+
+# Local audit and mutation-test output
+/mutants.out/
+/fuzz/artifacts/
+/fuzz/corpus/
