@@ -53,6 +53,7 @@ jobs:
         with:
           tool: wasm-pack
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir plugin build:wasm
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
@@ -76,7 +77,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-fuzz --locked
-      - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=30
+      - run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time=30
 
   mutation:
     name: Key-module mutation testing
