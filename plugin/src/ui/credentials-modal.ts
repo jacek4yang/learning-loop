@@ -53,6 +53,7 @@ class SetupModal extends Modal {
 
   override onOpen(): void {
     this.setTitle("Configure encrypted synchronization");
+    this.contentEl.addClass("learning-loop-mobile-panel");
     const error = this.contentEl.createDiv({
       cls: "learning-loop-form-error",
       attr: { role: "alert" },
@@ -126,6 +127,8 @@ class SetupModal extends Modal {
   }
 
   override onClose(): void {
+    this.serverPassword = "";
+    this.clientPassword = "";
     this.contentEl.empty();
     if (!this.settled) {
       this.settled = true;
@@ -194,6 +197,7 @@ class PasswordModal extends Modal {
 
   override onOpen(): void {
     this.setTitle("Unlock Learning Loop");
+    this.contentEl.addClass("learning-loop-mobile-panel");
     new Setting(this.contentEl)
       .setName("Client encryption password")
       .setDesc("This password remains in memory only while the plugin is unlocked.")

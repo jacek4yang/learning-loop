@@ -254,6 +254,9 @@ export class SyncController {
       this.debounceTimer = undefined;
       void this.syncNow().catch(() => undefined);
     }, DEBOUNCE_MS);
+    if (Platform.isMobile) {
+      this.setStatus("waiting");
+    }
   }
 
   private async runOnce(): Promise<void> {

@@ -20,6 +20,7 @@ import {
   requestClientPassword,
   requestSetupCredentials,
 } from "./ui/credentials-modal";
+import { MobileSyncModal } from "./ui/mobile-sync-modal";
 
 const PERIODIC_SYNC_MS = 5 * 60 * 1000;
 
@@ -28,10 +29,15 @@ export default class LearningLoopPlugin extends Plugin {
   private controller: SyncController | undefined;
   private statusText = "Locked";
   private statusElement: HTMLElement | undefined;
+  private mobileSyncModal: MobileSyncModal | undefined;
 
   override onload(): void {
-    this.addRibbonIcon("refresh-cw", "Learning Loop: sync now", () => {
-      void this.syncNow();
+    this.addRibbonIcon("refresh-cw", "Learning Loop", () => {
+      if (Platform.isMobile) {
+        this.openMobileSyncPanel();
+      } else {
+        void this.syncNow();
+      }
     });
     this.addCommand({
       id: "configure-encrypted-sync",
@@ -59,6 +65,13 @@ export default class LearningLoopPlugin extends Plugin {
       name: "Sync now",
       callback: () => {
         void this.syncNow();
+      },
+    });
+    this.addCommand({
+      id: "open-mobile-sync-panel",
+      name: "Open foreground sync panel",
+      callback: () => {
+        this.openMobileSyncPanel();
       },
     });
     this.addSettingTab(new LearningLoopSettingTab(this.app, this));
@@ -159,6 +172,16 @@ export default class LearningLoopPlugin extends Plugin {
         void this.controller?.syncNow().catch(() => undefined);
       }
     }, PERIODIC_SYNC_MS));
+    this.registerDomEvent(document, "visibilitychange", () => {
+      if (
+        document.visibilityState === "visible"
+        && this.controller?.status !== "locked"
+        && this.controller?.status !== "connecting"
+        && this.controller?.status !== "syncing"
+      ) {
+        void this.controller?.syncNow().catch(() => undefined);
+      }
+    });
   }
 
   private updateStatus(status: SyncStatus, detail?: string): void {
@@ -172,6 +195,25 @@ export default class LearningLoopPlugin extends Plugin {
     }[status];
     this.statusText = detail === undefined ? label : `${label}: ${detail}`;
     this.statusElement?.setText(`Learning Loop: ${this.statusText}`);
+    this.mobileSyncModal?.update(status, detail);
+  }
+
+  private openMobileSyncPanel(): void {
+    if (this.mobileSyncModal !== undefined) {
+      this.mobileSyncModal.close();
+    }
+    this.mobileSyncModal = new MobileSyncModal(
+      this.app,
+      {
+        unlock: () => this.unlock(),
+        syncNow: () => this.syncNow(),
+        lock: () => {
+          this.lock();
+        },
+      },
+      this.controller?.status ?? "locked",
+    );
+    this.mobileSyncModal.open();
   }
 
   private async runUserAction(

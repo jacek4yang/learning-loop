@@ -19,7 +19,39 @@
 }
 
 .is-mobile .learning-loop-settings button,
-.is-mobile .modal.mod-dim .learning-loop-settings button {
+.is-mobile .learning-loop-mobile-panel button {
   min-height: 48px;
   width: 100%;
+}
+
+.learning-loop-mobile-panel .setting-item {
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.learning-loop-mobile-panel .setting-item-control {
+  width: 100%;
+}
+
+.learning-loop-mobile-status {
+  background: var(--background-secondary);
+  border-radius: var(--radius-m);
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  margin-bottom: var(--size-4-4);
+  padding: var(--size-4-4);
+  text-align: center;
+}
+
+.learning-loop-mobile-status[data-sync-state="waiting"] {
+  color: var(--text-warning);
+}
+
+.learning-loop-mobile-status[data-sync-state="synced"] {
+  color: var(--text-success);
+}
+
+.learning-loop-mobile-status[data-sync-state="error"] {
+  color: var(--text-error);
 }
