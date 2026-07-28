@@ -1,91 +1,265 @@
 import {
   Notice,
+  Platform,
   Plugin,
   PluginSettingTab,
   Setting,
   type App,
+  type TFile,
 } from "obsidian";
 
-import { runTransportCheck } from "./spikes/transport";
+import {
+  SettingsRepository,
+  type ServerSettings,
+} from "./settings";
+import {
+  SyncController,
+  type SyncStatus,
+} from "./sync/controller";
+import {
+  requestClientPassword,
+  requestSetupCredentials,
+} from "./ui/credentials-modal";
 
-interface LearningLoopSettings {
-  transportSpikeEndpoint: string;
-}
-
-const DEFAULT_SETTINGS: LearningLoopSettings = {
-  transportSpikeEndpoint: "http://127.0.0.1:48633/v1/transport-spike",
-};
+const PERIODIC_SYNC_MS = 5 * 60 * 1000;
 
 export default class LearningLoopPlugin extends Plugin {
-  private pluginSettings: LearningLoopSettings = DEFAULT_SETTINGS;
+  private readonly settingsRepository = new SettingsRepository(this);
+  private controller: SyncController | undefined;
+  private statusText = "Locked";
+  private statusElement: HTMLElement | undefined;
 
-  override async onload(): Promise<void> {
-    await this.loadSettings();
-    this.addSettingTab(new LearningLoopSettingTab(this.app, this));
+  override onload(): void {
+    this.addRibbonIcon("refresh-cw", "Learning Loop: sync now", () => {
+      void this.syncNow();
+    });
     this.addCommand({
-      id: "run-transport-compatibility-check",
-      name: "Run transport compatibility check",
+      id: "configure-encrypted-sync",
+      name: "Configure encrypted synchronization",
       callback: () => {
-        void this.runTransportCheck();
+        void this.configure();
       },
     });
+    this.addCommand({
+      id: "unlock",
+      name: "Unlock",
+      callback: () => {
+        void this.unlock();
+      },
+    });
+    this.addCommand({
+      id: "lock",
+      name: "Lock",
+      callback: () => {
+        this.controller?.lock();
+      },
+    });
+    this.addCommand({
+      id: "sync-now",
+      name: "Sync now",
+      callback: () => {
+        void this.syncNow();
+      },
+    });
+    this.addSettingTab(new LearningLoopSettingTab(this.app, this));
+    if (Platform.isDesktopApp) {
+      this.statusElement = this.addStatusBarItem();
+      this.statusElement.setText("Learning Loop: Locked");
+    }
 
     this.app.workspace.onLayoutReady(() => {
-      // Runtime services are deliberately deferred until the workspace is ready.
+      void this.initializeRuntime();
     });
   }
 
-  async updateTransportSpikeEndpoint(endpoint: string): Promise<void> {
-    this.pluginSettings = {
-      ...this.pluginSettings,
-      transportSpikeEndpoint: endpoint.trim(),
-    };
-    await this.saveData(this.pluginSettings);
+  override onunload(): void {
+    this.controller?.lock();
   }
 
-  get transportSpikeEndpoint(): string {
-    return this.pluginSettings.transportSpikeEndpoint;
+  get statusLabel(): string {
+    return this.statusText;
   }
 
-  private async loadSettings(): Promise<void> {
-    const stored = (await this.loadData()) as Partial<LearningLoopSettings> | null;
-    this.pluginSettings = {
-      ...DEFAULT_SETTINGS,
-      ...stored,
-    };
+  async currentServer(): Promise<ServerSettings | undefined> {
+    return (await this.settingsRepository.load()).server;
   }
 
-  private async runTransportCheck(): Promise<void> {
+  async configure(): Promise<void> {
+    const credentials = await requestSetupCredentials(
+      this.app,
+      await this.currentServer(),
+    );
+    if (credentials === undefined) {
+      return;
+    }
+    await this.runUserAction(
+      () => required(this.controller).configure(credentials),
+      "Encrypted synchronization configured.",
+    );
+  }
+
+  async unlock(): Promise<void> {
+    const password = await requestClientPassword(this.app);
+    if (password === undefined) {
+      return;
+    }
+    await this.runUserAction(
+      () => required(this.controller).unlock(password),
+      "Learning Loop unlocked.",
+    );
+  }
+
+  async syncNow(): Promise<void> {
+    await this.runUserAction(
+      () => required(this.controller).syncNow(),
+      "Synchronization complete.",
+    );
+  }
+
+  lock(): void {
+    this.controller?.lock();
+  }
+
+  private async initializeRuntime(): Promise<void> {
+    this.controller = new SyncController(
+      this.app,
+      this.manifest.id,
+      this.settingsRepository,
+      (status, detail) => {
+        this.updateStatus(status, detail);
+      },
+    );
     try {
-      const result = await runTransportCheck(
-        this.pluginSettings.transportSpikeEndpoint,
-      );
-      const summary = result.ok ? "Transport check passed" : "Transport check failed";
-      new Notice(`${summary}: HTTP ${result.status}, ${result.bytes} bytes. ${result.detail}`);
+      await this.controller.initialize();
     } catch {
-      new Notice("Transport check failed before receiving a response.");
+      this.updateStatus("error", "WASM core could not be loaded");
+      new Notice("Learning Loop could not load its cryptographic core.");
+      return;
+    }
+    this.registerEvent(this.app.vault.on("create", (file) => {
+      if (isFile(file)) {
+        void this.controller?.handleContentEvent(file.path);
+      }
+    }));
+    this.registerEvent(this.app.vault.on("modify", (file) => {
+      void this.controller?.handleContentEvent(file.path);
+    }));
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      this.controller?.handlePathEvent(oldPath, file.path);
+    }));
+    this.registerEvent(this.app.vault.on("delete", (file) => {
+      this.controller?.handlePathEvent(file.path);
+    }));
+    this.registerInterval(window.setInterval(() => {
+      if (
+        this.controller?.status !== "locked"
+        && this.controller?.status !== "connecting"
+        && this.controller?.status !== "syncing"
+      ) {
+        void this.controller?.syncNow().catch(() => undefined);
+      }
+    }, PERIODIC_SYNC_MS));
+  }
+
+  private updateStatus(status: SyncStatus, detail?: string): void {
+    const label = {
+      locked: "Locked",
+      connecting: "Connecting",
+      waiting: "Waiting to sync",
+      syncing: "Syncing",
+      synced: "Synced",
+      error: "Needs attention",
+    }[status];
+    this.statusText = detail === undefined ? label : `${label}: ${detail}`;
+    this.statusElement?.setText(`Learning Loop: ${this.statusText}`);
+  }
+
+  private async runUserAction(
+    action: () => Promise<void>,
+    success: string,
+  ): Promise<void> {
+    try {
+      await action();
+      new Notice(success);
+    } catch (error) {
+      new Notice(
+        error instanceof Error
+          ? `Learning Loop: ${error.message}`
+          : "Learning Loop operation failed.",
+      );
     }
   }
 }
 
 class LearningLoopSettingTab extends PluginSettingTab {
-  constructor(app: App, private readonly plugin: LearningLoopPlugin) {
-    super(app, plugin);
+  constructor(app: App, private readonly learningLoop: LearningLoopPlugin) {
+    super(app, learningLoop);
   }
 
   override display(): void {
     this.containerEl.empty();
-
+    this.containerEl.addClass("learning-loop-settings");
+    this.containerEl.createEl("h2", { text: "Learning Loop" });
     new Setting(this.containerEl)
-      .setName("Transport test endpoint")
-      .setDesc("Local Phase 0 endpoint. Do not enter a password or token.")
-      .addText((text) => {
-        text
-          .setPlaceholder(DEFAULT_SETTINGS.transportSpikeEndpoint)
-          .setValue(this.plugin.transportSpikeEndpoint)
-          .onChange(async (value) => {
-            await this.plugin.updateTransportSpikeEndpoint(value);
+      .setName("Synchronization status")
+      .setDesc(this.learningLoop.statusLabel);
+    new Setting(this.containerEl)
+      .setName("Configure this device")
+      .setDesc(
+        "Enter the DDNS hostname, port, pinned fingerprint, two passwords, and device name.",
+      )
+      .addButton((button) => {
+        button
+          .setButtonText("Configure")
+          .setCta()
+          .onClick(() => {
+            void this.learningLoop.configure().then(() => {
+              this.display();
+            });
           });
       });
+    new Setting(this.containerEl)
+      .setName("Unlock")
+      .setDesc("The client encryption password is never persisted.")
+      .addButton((button) => {
+        button.setButtonText("Unlock").onClick(() => {
+          void this.learningLoop.unlock().then(() => {
+            this.display();
+          });
+        });
+      });
+    new Setting(this.containerEl)
+      .setName("Sync now")
+      .setDesc("Runs in the foreground on Android and resumes persisted uploads.")
+      .addButton((button) => {
+        button.setButtonText("Sync now").onClick(() => {
+          void this.learningLoop.syncNow().then(() => {
+            this.display();
+          });
+        });
+      });
+    new Setting(this.containerEl)
+      .setName("Lock")
+      .setDesc("Clears in-memory keys and stops synchronization.")
+      .addButton((button) => {
+        button.setButtonText("Lock").setWarning().onClick(() => {
+          this.learningLoop.lock();
+          this.display();
+        });
+      });
   }
+}
+
+function required<T>(value: T | undefined): T {
+  if (value === undefined) {
+    throw new Error("plugin runtime is not ready");
+  }
+  return value;
+}
+
+function isFile(value: unknown): value is TFile {
+  return value !== null
+    && typeof value === "object"
+    && "stat" in value
+    && "extension" in value;
 }

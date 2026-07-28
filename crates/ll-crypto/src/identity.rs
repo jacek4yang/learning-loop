@@ -57,7 +57,7 @@ impl ServerIdentity {
             derived_public
         };
 
-        let fingerprint = fingerprint(&public_key);
+        let fingerprint = server_fingerprint(&public_key);
         Ok(Self {
             private_key,
             public_key,
@@ -84,7 +84,9 @@ impl ServerIdentity {
     }
 }
 
-fn fingerprint(public_key: &[u8; 32]) -> String {
+/// Computes the display fingerprint for a Noise responder public key.
+#[must_use]
+pub fn server_fingerprint(public_key: &[u8; 32]) -> String {
     let digest = Sha256::digest(public_key);
     format!(
         "SHA256:{}",

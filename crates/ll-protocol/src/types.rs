@@ -135,6 +135,13 @@ pub enum Request {
         /// Requested record count, bounded by the protocol.
         maximum_commits: u16,
     },
+    /// Stores the password-wrapped VMK envelope once, idempotently.
+    PutVaultKeyEnvelope {
+        /// Exact deterministic client-encrypted key envelope.
+        envelope: Vec<u8>,
+    },
+    /// Fetches the password-wrapped VMK envelope after server authentication.
+    GetVaultKeyEnvelope,
     /// Liveness request inside an authenticated channel.
     Ping,
 }
@@ -205,6 +212,13 @@ pub enum Response {
         /// True when another request is required.
         has_more: bool,
     },
+    /// The password-wrapped VMK envelope was stored or already matched.
+    VaultKeyEnvelopeStored,
+    /// Exact password-wrapped VMK envelope.
+    VaultKeyEnvelope {
+        /// Opaque envelope bytes.
+        envelope: Vec<u8>,
+    },
     /// Liveness response.
     Pong,
     /// Stable error without reflected untrusted text.
@@ -262,6 +276,10 @@ pub enum ErrorCode {
     CommitNotFound = 16,
     /// Commit ID or device sequence conflicts with different immutable data.
     CommitConflict = 17,
+    /// The vault has not yet been initialized with a wrapped VMK.
+    VaultKeyEnvelopeNotFound = 18,
+    /// A different wrapped VMK envelope was already initialized.
+    VaultKeyEnvelopeConflict = 19,
 }
 
 impl TryFrom<u16> for ErrorCode {
@@ -286,6 +304,8 @@ impl TryFrom<u16> for ErrorCode {
             15 => Ok(Self::MissingParent),
             16 => Ok(Self::CommitNotFound),
             17 => Ok(Self::CommitConflict),
+            18 => Ok(Self::VaultKeyEnvelopeNotFound),
+            19 => Ok(Self::VaultKeyEnvelopeConflict),
             _ => Err(()),
         }
     }

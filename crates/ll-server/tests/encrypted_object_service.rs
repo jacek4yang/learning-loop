@@ -212,6 +212,35 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
         Response::Error(ErrorCode::DeviceRequired)
     );
     let vault_id = primary.authenticate_new(&authentication_key).await;
+    assert_eq!(
+        primary.send(Request::GetVaultKeyEnvelope).await,
+        Response::Error(ErrorCode::VaultKeyEnvelopeNotFound)
+    );
+    let vault_key_envelope = ll_crypto::random_array::<96>().unwrap().to_vec();
+    assert_eq!(
+        primary
+            .send(Request::PutVaultKeyEnvelope {
+                envelope: vault_key_envelope.clone(),
+            })
+            .await,
+        Response::VaultKeyEnvelopeStored
+    );
+    assert_eq!(
+        primary
+            .send(Request::PutVaultKeyEnvelope {
+                envelope: vault_key_envelope.clone(),
+            })
+            .await,
+        Response::VaultKeyEnvelopeStored
+    );
+    assert_eq!(
+        primary
+            .send(Request::PutVaultKeyEnvelope {
+                envelope: ll_crypto::random_array::<96>().unwrap().to_vec(),
+            })
+            .await,
+        Response::Error(ErrorCode::VaultKeyEnvelopeConflict)
+    );
     let device = register_test_device(&mut primary).await;
 
     let mut secondary = ClientSession::connect(service.address, &bootstrap).await;
@@ -219,6 +248,12 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
         .authenticate_existing(&authentication_key, device.id, &device.signing_key)
         .await;
     assert_eq!(authenticated_vault, vault_id);
+    assert_eq!(
+        secondary.send(Request::GetVaultKeyEnvelope).await,
+        Response::VaultKeyEnvelope {
+            envelope: vault_key_envelope,
+        }
+    );
 
     let post_revoke_commit = assert_commit_graph(
         service.address,

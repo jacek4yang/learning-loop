@@ -1,11 +1,12 @@
 {
   "name": "@learning-loop/plugin",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "node esbuild.config.mjs production",
+    "build": "pnpm build:wasm && node esbuild.config.mjs production",
+    "build:wasm": "wasm-pack build ../wasm/ll-client-core --target web --out-dir pkg --release",
     "lint": "eslint src tests",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

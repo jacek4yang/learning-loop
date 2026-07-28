@@ -4,7 +4,8 @@ use thiserror::Error;
 use crate::{
     AuthChallenge, Bootstrap, ClientMessage, DeviceRecord, ErrorCode, MAX_CHANGES_PER_RESPONSE,
     MAX_CHUNK_BYTES, MAX_ENCRYPTED_DEVICE_NAME_BYTES, MAX_HEADS, MAX_KNOWN_COMMITS,
-    MAX_SIGNED_COMMIT_BYTES, NOISE_SUITE, PROTOCOL_VERSION, Request, Response, ServerMessage,
+    MAX_SIGNED_COMMIT_BYTES, MAX_VAULT_KEY_ENVELOPE_BYTES, NOISE_SUITE, PROTOCOL_VERSION, Request,
+    Response, ServerMessage,
 };
 
 const TYPE_AUTHENTICATE: u8 = 1;
@@ -20,6 +21,8 @@ const TYPE_PUT_COMMIT: u8 = 10;
 const TYPE_GET_COMMIT: u8 = 11;
 const TYPE_GET_HEADS: u8 = 12;
 const TYPE_GET_CHANGES: u8 = 13;
+const TYPE_PUT_VAULT_KEY_ENVELOPE: u8 = 14;
+const TYPE_GET_VAULT_KEY_ENVELOPE: u8 = 15;
 
 const RESPONSE_AUTHENTICATED: u8 = 1;
 const RESPONSE_DEVICE_REGISTERED: u8 = 2;
@@ -34,6 +37,8 @@ const RESPONSE_COMMIT_STORED: u8 = 10;
 const RESPONSE_COMMIT_RECORD: u8 = 11;
 const RESPONSE_HEADS: u8 = 12;
 const RESPONSE_CHANGES: u8 = 13;
+const RESPONSE_VAULT_KEY_ENVELOPE_STORED: u8 = 14;
+const RESPONSE_VAULT_KEY_ENVELOPE: u8 = 15;
 const RESPONSE_ERROR: u8 = 255;
 
 /// Deterministic CBOR encoding or decoding failure.
@@ -328,6 +333,12 @@ fn encode_request<W: encode::Write>(
             encode_fixed_array(encoder, known_commit_ids)?;
             encoder.u16(*maximum_commits)?;
         }
+        Request::PutVaultKeyEnvelope { envelope } => {
+            encode_tagged_bytes(encoder, TYPE_PUT_VAULT_KEY_ENVELOPE, envelope)?;
+        }
+        Request::GetVaultKeyEnvelope => {
+            encoder.array(1)?.u8(TYPE_GET_VAULT_KEY_ENVELOPE)?;
+        }
         Request::Ping => {
             encoder.array(1)?.u8(TYPE_PING)?;
         }
@@ -403,6 +414,10 @@ fn decode_request(decoder: &mut Decoder<'_>) -> Result<Request, CodecError> {
                 maximum_commits,
             })
         }
+        TYPE_PUT_VAULT_KEY_ENVELOPE if length == 2 => Ok(Request::PutVaultKeyEnvelope {
+            envelope: bounded_bytes(decoder, MAX_VAULT_KEY_ENVELOPE_BYTES)?,
+        }),
+        TYPE_GET_VAULT_KEY_ENVELOPE if length == 1 => Ok(Request::GetVaultKeyEnvelope),
         TYPE_PING if length == 1 => Ok(Request::Ping),
         _ => Err(CodecError::UnsupportedValue),
     }
@@ -499,6 +514,10 @@ fn encode_response<W: encode::Write>(
             }
             encoder.bool(*has_more)?;
         }
+        Response::VaultKeyEnvelopeStored => encode_vault_stored(encoder)?,
+        Response::VaultKeyEnvelope { envelope } => {
+            encode_tagged_bytes(encoder, RESPONSE_VAULT_KEY_ENVELOPE, envelope)?;
+        }
         Response::Pong => {
             encoder.array(1)?.u8(RESPONSE_PONG)?;
         }
@@ -576,12 +595,32 @@ fn decode_response(decoder: &mut Decoder<'_>) -> Result<Response, CodecError> {
                 has_more: decoder.bool()?,
             })
         }
+        RESPONSE_VAULT_KEY_ENVELOPE_STORED if length == 1 => Ok(Response::VaultKeyEnvelopeStored),
+        RESPONSE_VAULT_KEY_ENVELOPE if length == 2 => Ok(Response::VaultKeyEnvelope {
+            envelope: bounded_bytes(decoder, MAX_VAULT_KEY_ENVELOPE_BYTES)?,
+        }),
         RESPONSE_PONG if length == 1 => Ok(Response::Pong),
         RESPONSE_ERROR if length == 2 => Ok(Response::Error(
             ErrorCode::try_from(decoder.u16()?).map_err(|()| CodecError::UnsupportedValue)?,
         )),
         _ => Err(CodecError::UnsupportedValue),
     }
+}
+
+fn encode_tagged_bytes<W: encode::Write>(
+    encoder: &mut Encoder<W>,
+    tag: u8,
+    bytes: &[u8],
+) -> Result<(), encode::Error<W::Error>> {
+    encoder.array(2)?.u8(tag)?.bytes(bytes)?;
+    Ok(())
+}
+
+fn encode_vault_stored<W: encode::Write>(
+    encoder: &mut Encoder<W>,
+) -> Result<(), encode::Error<W::Error>> {
+    encoder.array(1)?.u8(RESPONSE_VAULT_KEY_ENVELOPE_STORED)?;
+    Ok(())
 }
 
 fn encode_optional_bytes<W: encode::Write>(
@@ -748,6 +787,10 @@ mod tests {
                 known_commit_ids: vec![[16; 32]],
                 maximum_commits: 2,
             },
+            Request::PutVaultKeyEnvelope {
+                envelope: vec![17, 18],
+            },
+            Request::GetVaultKeyEnvelope,
         ];
         for request in requests {
             let value = ClientMessage {
@@ -782,6 +825,10 @@ mod tests {
             Response::Changes {
                 commits: vec![vec![7, 8]],
                 has_more: true,
+            },
+            Response::VaultKeyEnvelopeStored,
+            Response::VaultKeyEnvelope {
+                envelope: vec![9, 10],
             },
         ];
         for response in responses {

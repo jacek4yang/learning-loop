@@ -21,6 +21,12 @@ encryption password never leaves the client and is not persisted by the plugin.
 The separate server access password only authorizes use of the service and
 cannot decrypt vault data.
 
+The plugin stores the server access password through Obsidian SecretStorage.
+`data.json` contains only the endpoint, pinned fingerprint, opaque vault ID,
+password-wrapped VMK envelope, and VMK-encrypted device signing identity.
+Upload staging contains ciphertext only. The client encryption password and
+unwrapped VMK exist only in the unlocked plugin/WASM process.
+
 Once unlocked, the Obsidian process necessarily reads local Markdown plaintext.
 A normal Obsidian plugin cannot keep local files encrypted at all times while
 also preserving native editing, search, and link behavior. Locking the plugin

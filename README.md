@@ -5,8 +5,11 @@ cross-platform Obsidian learning-workflow plugin. The repository is a monorepo
 for the Rust server, shared protocol and cryptography crates, a portable
 TypeScript plugin, and a WebAssembly client core.
 
-The project is under active development. No release is currently suitable for
-protecting production data.
+The repository currently contains the authenticated Rust object service,
+encrypted commit DAG, native/WASM client core, and the v0.3 desktop Obsidian
+synchronization implementation. It remains a development build until the
+cross-platform evidence matrix and v1.0 release gates are complete; do not use
+it as the only copy of production data.
 
 ## Security boundary
 
@@ -19,12 +22,24 @@ or Android device encryption and a strong screen lock.
 The plugin will not include AI, retain AI conversations, collect telemetry, or
 send note content to third parties.
 
-## Repository status
+## Development
 
-Implementation, security documentation, reproducible tests, and installable
-release packages will be added in independently verifiable phases. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for development rules and
-[SECURITY.md](SECURITY.md) for vulnerability reporting.
+Install the pinned toolchains, then run:
+
+```text
+cargo test --workspace --all-features
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+```
+
+The plugin production build creates ignored `plugin/main.js` and
+`plugin/core.wasm`; release packaging adds these to the source-controlled
+manifest and stylesheet. See [docs/synchronization.md](docs/synchronization.md)
+for the sync state machine, [CONTRIBUTING.md](CONTRIBUTING.md) for development
+rules, and [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 

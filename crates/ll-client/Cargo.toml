@@ -1,0 +1,23 @@
+[package]
+name = "ll-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ed25519-dalek.workspace = true
+ll-crypto = { path = "../ll-crypto", version = "0.1.0" }
+ll-protocol = { path = "../ll-protocol", version = "0.1.0" }
+ll-versioning = { path = "../ll-versioning", version = "0.1.0" }
+snow.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+ll-testkit = { path = "../ll-testkit", version = "0.1.0" }
+tempfile.workspace = true
+
+[lints]
+workspace = true

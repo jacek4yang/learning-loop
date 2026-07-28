@@ -2,3 +2,24 @@
   overflow-wrap: anywhere;
   user-select: text;
 }
+.learning-loop-settings .setting-item-control {
+  flex-wrap: wrap;
+}
+
+.learning-loop-form-error {
+  color: var(--text-error);
+  min-height: 1.5em;
+  margin-bottom: var(--size-4-2);
+}
+
+.is-mobile .learning-loop-settings .setting-item {
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.is-mobile .learning-loop-settings button,
+.is-mobile .modal.mod-dim .learning-loop-settings button {
+  min-height: 48px;
+  width: 100%;
+}

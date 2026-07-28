@@ -3,6 +3,7 @@ resolver = "2"
 exclude = ["fuzz"]
 members = [
   "crates/ll-canonical",
+  "crates/ll-client",
   "crates/ll-crypto",
   "crates/ll-protocol",
   "crates/ll-server",

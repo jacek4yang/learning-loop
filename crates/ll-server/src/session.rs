@@ -27,6 +27,15 @@ pub(crate) struct Session {
     pub message_count: u64,
 }
 
+impl Session {
+    pub const fn password_authenticated(&self) -> bool {
+        matches!(
+            self.phase,
+            SessionPhase::PasswordAuthenticated | SessionPhase::DeviceAuthenticated(_)
+        )
+    }
+}
+
 struct StoredSession {
     session: Arc<AsyncMutex<Session>>,
     expires_at: Instant,

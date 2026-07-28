@@ -83,6 +83,10 @@ impl Application {
                 self.get_changes(session, known_commit_ids, maximum_commits)
                     .await
             }
+            Request::PutVaultKeyEnvelope { envelope } => {
+                self.put_vault_key_envelope(session, envelope).await
+            }
+            Request::GetVaultKeyEnvelope => self.get_vault_key_envelope(session).await,
             Request::Ping => self.ping(session).await,
         }
     }
@@ -244,6 +248,34 @@ impl Application {
                 .changes(known_commit_ids, maximum_commits)
                 .await
                 .map(|(commits, has_more)| Response::Changes { commits, has_more }),
+        )
+    }
+
+    async fn put_vault_key_envelope(
+        &self,
+        session: &Session,
+        envelope: Vec<u8>,
+    ) -> ApplicationResult {
+        if !session.password_authenticated() {
+            return error(ErrorCode::InvalidState, true);
+        }
+        from_storage(
+            self.storage
+                .put_vault_key_envelope(envelope)
+                .await
+                .map(|()| Response::VaultKeyEnvelopeStored),
+        )
+    }
+
+    async fn get_vault_key_envelope(&self, session: &Session) -> ApplicationResult {
+        if !session.password_authenticated() {
+            return error(ErrorCode::InvalidState, true);
+        }
+        from_storage(
+            self.storage
+                .vault_key_envelope()
+                .await
+                .map(|envelope| Response::VaultKeyEnvelope { envelope }),
         )
     }
 

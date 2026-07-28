@@ -170,6 +170,8 @@ put_commit
 get_commit
 get_heads
 get_changes
+put_vault_key_envelope
+get_vault_key_envelope
 ```
 
 Blob begin is naturally idempotent by device, expected size, and BLAKE3 hash.
@@ -204,7 +206,10 @@ handshake and authentication. Resumable blob upload state is keyed by an
 encrypted-request upload ID and persists only bounded offsets and ciphertext
 hash state. Client pending operations persist before I/O, so Android process
 death resumes by querying the committed offset or restarting an idempotent
-upload.
+upload. The password-wrapped VMK envelope is initialized once through the
+encrypted channel; an exact duplicate is idempotent and a different value is
+rejected. It allows a password-authenticated new device to unlock the shared
+VMK before registering its fresh signing identity.
 
 ## Error model
 

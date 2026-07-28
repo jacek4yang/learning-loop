@@ -49,6 +49,12 @@ pub enum StorageError {
     /// Commit identity or device sequence conflicts with immutable state.
     #[error("commit conflicts with immutable state")]
     CommitConflict,
+    /// Password-wrapped VMK envelope is not initialized.
+    #[error("vault key envelope was not found")]
+    VaultKeyEnvelopeNotFound,
+    /// A different password-wrapped VMK envelope already exists.
+    #[error("vault key envelope conflicts with immutable state")]
+    VaultKeyEnvelopeConflict,
     /// Commit vault, device, root, or sequence rule is invalid.
     #[error("commit state transition is invalid")]
     InvalidCommit,
@@ -76,6 +82,8 @@ impl StorageError {
             Self::MissingParent => ErrorCode::MissingParent,
             Self::CommitNotFound => ErrorCode::CommitNotFound,
             Self::CommitConflict => ErrorCode::CommitConflict,
+            Self::VaultKeyEnvelopeNotFound => ErrorCode::VaultKeyEnvelopeNotFound,
+            Self::VaultKeyEnvelopeConflict => ErrorCode::VaultKeyEnvelopeConflict,
             Self::PasswordMismatch => ErrorCode::AuthenticationFailed,
             Self::Database(_) | Self::Io(_) | Self::Join(_) | Self::Crypto(_) => {
                 ErrorCode::TemporarilyUnavailable

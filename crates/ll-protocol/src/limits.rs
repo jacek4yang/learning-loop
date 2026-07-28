@@ -21,6 +21,9 @@ pub const MAX_ENCRYPTED_DEVICE_NAME_BYTES: usize = 4096;
 /// Maximum complete deterministic signed commit record.
 pub const MAX_SIGNED_COMMIT_BYTES: usize = 264 * 1024;
 
+/// Maximum password-wrapped VMK envelope.
+pub const MAX_VAULT_KEY_ENVELOPE_BYTES: usize = 512;
+
 /// Maximum commit IDs a client may advertise as already known.
 pub const MAX_KNOWN_COMMITS: usize = 2048;
 

@@ -13,8 +13,9 @@ use ll_crypto::{
     Argon2Policy, ServerAuthKey, derive_server_auth_key, random_array, server_auth_verifier,
     verify_server_auth_verifier,
 };
-use ll_protocol::DeviceRecord;
+use ll_protocol::{DeviceRecord, MAX_VAULT_KEY_ENVELOPE_BYTES};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use subtle::ConstantTimeEq;
 use tokio::sync::{Mutex as AsyncMutex, OwnedMutexGuard};
 use zeroize::{Zeroize, Zeroizing};
 
@@ -30,6 +31,7 @@ const META_ARGON_MEMORY: &str = "argon2_memory_kib";
 const META_ARGON_ITERATIONS: &str = "argon2_iterations";
 const META_ARGON_PARALLELISM: &str = "argon2_parallelism";
 const META_MIGRATION_VERSION: &str = "migration_version";
+const META_VAULT_KEY_ENVELOPE: &str = "vault_key_envelope";
 const CURRENT_MIGRATION_VERSION: u32 = 2;
 
 type UploadLocks = Arc<Mutex<HashMap<[u8; 16], Weak<AsyncMutex<()>>>>>;
@@ -163,6 +165,58 @@ impl Storage {
     #[must_use]
     pub const fn vault_id(&self) -> [u8; 16] {
         self.vault_id
+    }
+
+    /// Initializes the password-wrapped VMK envelope exactly once.
+    ///
+    /// An exact repeat is idempotent. A different envelope is rejected so a
+    /// server-password holder cannot replace established recovery material.
+    ///
+    /// # Errors
+    ///
+    /// Returns a limit, conflict, or durable storage error.
+    pub async fn put_vault_key_envelope(&self, envelope: Vec<u8>) -> Result<(), StorageError> {
+        if envelope.is_empty() || envelope.len() > MAX_VAULT_KEY_ENVELOPE_BYTES {
+            return Err(StorageError::LimitExceeded);
+        }
+        let database = self.database_path.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut connection = open_connection(&database)?;
+            let transaction =
+                connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+            if let Some(existing) = get_meta(&transaction, META_VAULT_KEY_ENVELOPE)? {
+                if bool::from(existing.ct_eq(&envelope)) {
+                    transaction.commit()?;
+                    return Ok(());
+                }
+                return Err(StorageError::VaultKeyEnvelopeConflict);
+            }
+            set_meta(&transaction, META_VAULT_KEY_ENVELOPE, &envelope)?;
+            transaction.commit()?;
+            Ok(())
+        })
+        .await?
+    }
+
+    /// Fetches the opaque password-wrapped VMK envelope.
+    ///
+    /// # Errors
+    ///
+    /// Returns not-found or durable storage errors.
+    pub async fn vault_key_envelope(&self) -> Result<Vec<u8>, StorageError> {
+        let database = self.database_path.clone();
+        tokio::task::spawn_blocking(move || {
+            let connection = open_connection(&database)?;
+            connection
+                .query_row(
+                    "SELECT value FROM metadata WHERE key = ?1",
+                    [META_VAULT_KEY_ENVELOPE],
+                    |row| row.get(0),
+                )
+                .optional()?
+                .ok_or(StorageError::VaultKeyEnvelopeNotFound)
+        })
+        .await?
     }
 
     /// Returns one device, including revoked state.

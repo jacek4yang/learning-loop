@@ -8,9 +8,25 @@ license.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [dependencies]
+blake3.workspace = true
+getrandom = { workspace = true, features = ["wasm_js"] }
+getrandom02 = { package = "getrandom", version = "0.2.17", features = ["js"] }
+getrandom03 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
+hex.workspace = true
 ll-canonical = { path = "../../crates/ll-canonical", version = "0.1.0" }
+ll-client = { path = "../../crates/ll-client", version = "0.1.0" }
+ll-crypto = { path = "../../crates/ll-crypto", version = "0.1.0" }
+ll-protocol = { path = "../../crates/ll-protocol", version = "0.1.0" }
+ll-versioning = { path = "../../crates/ll-versioning", version = "0.1.0" }
+serde.workspace = true
+serde_json.workspace = true
+uuid = { workspace = true, features = ["rng-getrandom"] }
 wasm-bindgen.workspace = true
+zeroize.workspace = true
 
 [lints]
 workspace = true

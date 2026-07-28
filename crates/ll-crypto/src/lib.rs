@@ -17,7 +17,7 @@ pub use device::{
     device_auth_signature_context, registration_signature_context, verify_device_signature,
 };
 pub use error::CryptoError;
-pub use identity::ServerIdentity;
+pub use identity::{ServerIdentity, server_fingerprint};
 pub use keys::{ClientKdfPolicy, ClientPlatformClass, VaultMasterKey, VaultSubkeys};
 pub use noise::{
     AcceptedHandshake, accept_handshake, build_initiator, decrypt_transport_records,
