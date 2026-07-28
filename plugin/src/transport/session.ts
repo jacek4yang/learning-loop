@@ -28,8 +28,8 @@ const RESPONSE = {
   error: 255,
 } as const;
 
-const MAX_BLOB_CHUNK_BYTES = 512 * 1024;
-const MAX_CHANGE_PAGE = 256;
+const MAX_BLOB_CHUNK_BYTES = 256 * 1024;
+const MAX_CHANGE_PAGE = 3;
 const VAULT_KEY_ENVELOPE_NOT_FOUND = 18;
 
 export interface ConnectionResult {

@@ -9,6 +9,7 @@ import {
   type SyncState,
   type VaultPort,
 } from "./types";
+import { portablePathConflictGroups } from "./paths";
 
 interface ScannedFile {
   readonly file: LocalFile;
@@ -173,13 +174,11 @@ function rejectCollisions(
   core: PortableCore,
   issues: ReconciliationIssue[],
 ): ScannedFile[] {
-  const byKey = groupBy(files, (file) => core.collisionKey(file.path));
   const rejected = new Set<string>();
-  for (const group of byKey.values()) {
-    if (group.length < 2) {
-      continue;
-    }
-    const paths = group.map((file) => file.path).sort();
+  for (const paths of portablePathConflictGroups(
+    files.map((file) => file.path),
+    core,
+  )) {
     issues.push({ code: "portable_collision", paths });
     for (const path of paths) {
       rejected.add(path);

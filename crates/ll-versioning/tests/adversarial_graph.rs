@@ -81,6 +81,18 @@ fn duplicates_collisions_missing_parents_and_out_of_order_commits_are_explicit()
         graph.insert(id(4), vec![id(3), id(2)]),
         Err(VersioningError::InvalidFormat)
     ));
+    assert!(matches!(
+        graph.insert(id(4), vec![id(1), id(1)]),
+        Err(VersioningError::InvalidFormat)
+    ));
+    assert!(matches!(
+        graph.common_ancestor(&id(1), &id(8)),
+        Err(VersioningError::CommitNotFound)
+    ));
+    assert!(matches!(
+        graph.common_ancestor(&id(8), &id(1)),
+        Err(VersioningError::CommitNotFound)
+    ));
 }
 
 proptest! {

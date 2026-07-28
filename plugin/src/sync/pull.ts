@@ -1,4 +1,8 @@
 import { conflictCopyPath, conflictRecord, mergeText } from "./merge";
+import {
+  portablePathConflictGroups,
+  portablePathsConflict,
+} from "./paths";
 import type { ManifestInput } from "./engine";
 import type { StateRepository } from "./state";
 import {
@@ -102,6 +106,18 @@ export class PullEngine {
   ) {}
 
   async pull(): Promise<SyncState> {
+    try {
+      return await this.pullVerified();
+    } finally {
+      for (const plaintext of this.blobCleartexts.values()) {
+        plaintext.fill(0);
+      }
+      this.blobCleartexts.clear();
+      this.snapshots.clear();
+    }
+  }
+
+  private async pullVerified(): Promise<SyncState> {
     const original = await this.states.read();
     const devices = (await this.remote.listDevices())
       .filter((device) => !device.revoked)
@@ -241,14 +257,16 @@ export class PullEngine {
 
   private async scanLocal(): Promise<Map<string, LocalSnapshot>> {
     const output = new Map<string, LocalSnapshot>();
-    const collisionKeys = new Map<string, string>();
-    for (const file of await this.vault.listFiles()) {
-      const collisionKey = this.core.collisionKey(file.path);
-      const existing = collisionKeys.get(collisionKey);
-      if (existing !== undefined && existing !== file.path) {
-        throw new Error("local vault has a portable path collision");
-      }
-      collisionKeys.set(collisionKey, file.path);
+    const files = await this.vault.listFiles();
+    if (
+      portablePathConflictGroups(
+        files.map((file) => file.path),
+        this.core,
+      ).length > 0
+    ) {
+      throw new Error("local vault has a portable path collision");
+    }
+    for (const file of files) {
       const bytes = await this.vault.read(file.path);
       const canonical = isText(file.path)
         ? this.core.canonicalizeText(bytes)
@@ -491,10 +509,10 @@ export class PullEngine {
   private async clearBlob(blobId: HexId): Promise<Uint8Array> {
     const cached = this.blobCleartexts.get(blobId);
     if (cached !== undefined) {
-      return cached.slice();
+      return cached;
     }
     const clear = this.core.decryptObject(await this.remote.getBlob(blobId));
-    this.blobCleartexts.set(blobId, clear.slice());
+    this.blobCleartexts.set(blobId, clear);
     return clear;
   }
 
@@ -591,6 +609,7 @@ function validateSelectedPaths(
   core: PullCore,
 ): void {
   const paths = new Map<string, string>();
+  const selectedPaths: string[] = [];
   for (const choice of selected.values()) {
     if (choice.selected.entry.tombstone) {
       continue;
@@ -604,6 +623,10 @@ function validateSelectedPaths(
       throw new Error("remote manifests assign one path to multiple objects");
     }
     paths.set(key, choice.selected.path);
+    selectedPaths.push(choice.selected.path);
+  }
+  if (portablePathConflictGroups(selectedPaths, core).length > 0) {
+    throw new Error("remote manifests contain a portable path collision");
   }
 }
 
@@ -668,11 +691,10 @@ function portableLocalCollision(
   core: PullCore,
   excludedPath?: string,
 ): LocalSnapshot | undefined {
-  const key = core.collisionKey(remotePath);
   return [...files.values()].find(
     (file) =>
       file.path !== excludedPath
-      && core.collisionKey(file.path) === key,
+      && portablePathsConflict(file.path, remotePath, core),
   );
 }
 

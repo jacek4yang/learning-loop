@@ -176,6 +176,21 @@ describe("reconciliation", () => {
     }]);
   });
 
+  it("blocks a file path that is also used as a directory prefix", async () => {
+    const result = await new Reconciler(
+      new TestVault(new Map([
+        ["folder", encoder.encode("file")],
+        ["folder/note.md", encoder.encode("child")],
+      ])),
+      new TestCore(),
+    ).scan(EMPTY_SYNC_STATE);
+    expect(result.operations).toEqual([]);
+    expect(result.issues).toEqual([{
+      code: "portable_collision",
+      paths: ["folder", "folder/note.md"],
+    }]);
+  });
+
   it("scans the required multilingual and 100 MiB+ binary matrix", async () => {
     const large = new Uint8Array(100 * 1024 * 1024 + 1);
     large[0] = 0x25;

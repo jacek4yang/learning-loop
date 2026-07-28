@@ -16,35 +16,39 @@ fuzz_target!(|data: &[u8]| {
         let candidate = &data[cursor..end];
         cursor = end;
 
-        let Ok(ServerMessage::Response(Response::BlobChunk {
-            offset,
-            total,
-            complete,
-            chunk,
-        })) = decode_server_message(candidate)
+        let Ok(ServerMessage {
+            response:
+                Response::BlobChunk {
+                    offset,
+                    total_size,
+                    complete,
+                    chunk,
+                },
+            ..
+        }) = decode_server_message(candidate)
         else {
             continue;
         };
         if offset != expected_offset
             || chunk.len() > MAX_CHUNK_BYTES
-            || declared_total.is_some_and(|known| known != total)
+            || declared_total.is_some_and(|known| known != total_size)
         {
             break;
         }
-        declared_total = Some(total);
+        declared_total = Some(total_size);
         let Ok(chunk_len) = u64::try_from(chunk.len()) else {
             break;
         };
         let Some(next) = expected_offset.checked_add(chunk_len) else {
             break;
         };
-        if next > total {
+        if next > total_size {
             break;
         }
         assembled.extend_from_slice(&chunk);
         expected_offset = next;
         if complete {
-            let _is_exact = expected_offset == total;
+            let _is_exact = expected_offset == total_size;
             break;
         }
         if chunk.is_empty() {

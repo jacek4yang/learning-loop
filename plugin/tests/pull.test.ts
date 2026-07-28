@@ -69,6 +69,16 @@ class PullTestCore implements PullCore {
   }
 }
 
+class ZeroizingPullTestCore extends PullTestCore {
+  readonly plaintexts: Uint8Array[] = [];
+
+  override decryptObject(ciphertext: Uint8Array): Uint8Array {
+    const plaintext = super.decryptObject(ciphertext);
+    this.plaintexts.push(plaintext);
+    return plaintext;
+  }
+}
+
 class PullTestVault implements VaultPort {
   constructor(readonly files: Map<string, Uint8Array>) {}
 
@@ -249,6 +259,32 @@ function encoded(commit: DecodedCommit): Uint8Array {
 }
 
 describe("verified pull and conflict handling", () => {
+  it("zeroizes cached decrypted blobs after a pull", async () => {
+    const core = new ZeroizingPullTestCore();
+    const remote = new PullTestRemote();
+    const root = addCommit(core, remote, "root", [], "1", [{
+      path: "secret.md",
+      content: "sensitive plaintext\n",
+      revision: "1",
+    }]);
+    remote.commits.push(encoded(root));
+    remote.heads = ["root"];
+
+    await new PullEngine(
+      VAULT_ID,
+      new PullTestVault(new Map()),
+      core,
+      remote,
+      new MemoryStateRepository(),
+      new EchoSuppressor(),
+      "desktop",
+    ).pull();
+
+    expect(core.plaintexts.length).toBeGreaterThan(0);
+    expect(core.plaintexts.every((bytes) => bytes.every((byte) => byte === 0)))
+      .toBe(true);
+  });
+
   it("applies a verified remote change when the local file is unchanged", async () => {
     const core = new PullTestCore();
     const remote = new PullTestRemote();

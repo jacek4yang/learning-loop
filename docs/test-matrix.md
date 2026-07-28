@@ -18,6 +18,7 @@ operating system or Android device was used.
 | Merge | pull tests plus `adversarial-merge.test.ts` with fast-check | same/different paragraph, delete-modify, same-path create, insertion, binary preservation, no conflict markers |
 | Client state | state, engine, pull, and reconciliation tests | process-loss resume, missing staged data, lost commit response, collisions, corrupt state |
 | Security | server black-box and crypto tests | fingerprint substitution, unauthenticated upload, password failure/backoff, replay, request/body caps, signature forgery, commit/blob tamper, revocation |
+| Mutation | cargo-mutants 27.1.0, targeted key-module run | 31 mutants: 29 caught and 2 unviable; no survivors after boundary tests were added |
 | Learning | learning unit and in-memory Obsidian integration tests | schemas, outlines, cards, schedules, rebuildable Canvas, secret guard, manual-map non-overwrite |
 
 ## Filesystem profiles

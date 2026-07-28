@@ -179,16 +179,48 @@ pub fn detect_collisions(paths: impl IntoIterator<Item = PortablePath>) -> Vec<P
         grouped.entry(path.collision_key()).or_default().push(path);
     }
 
-    grouped
-        .into_iter()
-        .filter_map(|(key, mut members)| {
-            members.sort();
-            (members.len() > 1).then_some(PathCollision {
-                key,
-                paths: members,
-            })
+    let mut collisions = grouped
+        .iter()
+        .filter(|(_, members)| members.len() > 1)
+        .map(|(key, members)| {
+            let mut paths = members.clone();
+            paths.sort();
+            PathCollision {
+                key: key.clone(),
+                paths,
+            }
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    let mut prefix_collisions: BTreeMap<String, BTreeMap<String, PortablePath>> = BTreeMap::new();
+    for (descendant_key, descendant_paths) in &grouped {
+        for (slash, _) in descendant_key.match_indices('/') {
+            let ancestor_key = &descendant_key[..slash];
+            let Some(ancestor_paths) = grouped.get(ancestor_key) else {
+                continue;
+            };
+            let members = prefix_collisions
+                .entry(ancestor_key.to_owned())
+                .or_default();
+            for path in ancestor_paths.iter().chain(descendant_paths) {
+                members.insert(path.as_str().to_owned(), path.clone());
+            }
+        }
+    }
+    collisions.extend(
+        prefix_collisions
+            .into_iter()
+            .map(|(key, members)| PathCollision {
+                key,
+                paths: members.into_values().collect(),
+            }),
+    );
+    collisions.sort_by(|left, right| {
+        left.key
+            .cmp(&right.key)
+            .then_with(|| left.paths.cmp(&right.paths))
+    });
+    collisions
 }
 
 /// Suggests a deterministic safe name for one invalid path segment.
