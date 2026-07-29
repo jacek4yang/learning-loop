@@ -156,6 +156,31 @@
   width: 100%;
 }
 
+.learning-loop-config-actions .setting-item-control {
+  flex-wrap: wrap;
+}
+
+.learning-loop-connection-test-result {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.45;
+  min-height: 1.45em;
+  padding-block-end: var(--size-4-2);
+  text-align: end;
+}
+
+.learning-loop-connection-test-result[data-state="testing"] {
+  color: var(--text-accent);
+}
+
+.learning-loop-connection-test-result[data-state="success"] {
+  color: var(--text-success);
+}
+
+.learning-loop-connection-test-result[data-state="error"] {
+  color: var(--text-error);
+}
+
 .learning-loop-unlock-modal {
   max-width: min(520px, calc(100vw - 32px));
   width: 520px;

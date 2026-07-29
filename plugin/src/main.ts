@@ -219,6 +219,8 @@ export default class LearningLoopPlugin extends Plugin {
       this.app,
       await this.currentServer(),
       await this.settingsRepository.hasServerPassword(),
+      (credentials) =>
+        required(this.controller).testConnection(credentials),
     );
     if (credentials === undefined) {
       return;

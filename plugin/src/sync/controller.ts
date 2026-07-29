@@ -7,7 +7,10 @@ import {
   type SettingsRepository,
   strongClientPassword,
 } from "../settings";
-import type { SetupCredentials } from "../ui/credentials-modal";
+import type {
+  ConnectionTestCredentials,
+  SetupCredentials,
+} from "../ui/credentials-modal";
 import {
   WasmEncryptedCore,
   bytesToHex,
@@ -92,6 +95,34 @@ export class SyncController {
     const secretId = this.settings?.serverPasswordSecretId;
     return secretId !== undefined
       && this.app.secretStorage.getSecret(secretId) !== null;
+  }
+
+  async testConnection(
+    credentials: ConnectionTestCredentials,
+  ): Promise<void> {
+    const storedServerPassword = await this.repository.serverPassword();
+    const serverPassword = credentials.serverPassword.length > 0
+      ? credentials.serverPassword
+      : storedServerPassword;
+    if (serverPassword === undefined || serverPassword.length < 16) {
+      throw new Error("server access password is unavailable");
+    }
+    let session: AuthenticatedSession | undefined;
+    try {
+      const connection = await AuthenticatedSession.connect(
+        FixedRouteHttpTransport.fromHostAndPort(
+          credentials.host,
+          credentials.port,
+        ),
+        credentials.fingerprint,
+        serverPassword,
+      );
+      session = connection.session;
+    } catch (error) {
+      throw new Error(userFacingErrorMessage(error), { cause: error });
+    } finally {
+      session?.close();
+    }
   }
 
   async configure(credentials: SetupCredentials): Promise<void> {
@@ -440,6 +471,8 @@ export function userFacingErrorMessage(error: unknown): string {
     "invalid Learning Loop connection settings":
       "服务器配置格式不正确，请重新检查",
     "invalid server host or port": "服务器主机名或端口不正确",
+    "server bootstrap or fingerprint is invalid":
+      "服务器指纹不匹配，请从服务端启动日志重新复制完整指纹",
     "stored device is not authorized": "这台设备尚未获得服务器授权",
     "Learning Loop runtime is not ready": "Learning Loop 仍在启动，请稍后重试",
     "plugin runtime is not ready": "Learning Loop 仍在启动，请稍后重试",

@@ -8,8 +8,8 @@ license.workspace = true
 [dependencies]
 blake3.workspace = true
 ed25519-dalek.workspace = true
-ll-crypto = { path = "../ll-crypto", version = "1.0.1" }
-ll-protocol = { path = "../ll-protocol", version = "1.0.1" }
+ll-crypto = { path = "../ll-crypto", version = "1.0.2" }
+ll-protocol = { path = "../ll-protocol", version = "1.0.2" }
 minicbor.workspace = true
 subtle.workspace = true
 thiserror.workspace = true
@@ -17,7 +17,7 @@ uuid.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
-ll-testkit = { path = "../ll-testkit", version = "1.0.1" }
+ll-testkit = { path = "../ll-testkit", version = "1.0.2" }
 proptest.workspace = true
 serde_json.workspace = true
 

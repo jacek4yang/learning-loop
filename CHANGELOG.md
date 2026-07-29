@@ -3,6 +3,16 @@
 All notable changes are documented here. Learning Loop follows semantic
 versioning for the server protocol implementation and Obsidian plugin package.
 
+## 1.0.2 - 2026-07-29
+
+- Add a non-mutating **测试连接** action to the encrypted synchronization
+  setup window.
+- Verify server reachability, the pinned fingerprint, and the server access
+  password without registering a device, saving new input, or starting
+  synchronization.
+- Show an inline Chinese diagnostic for unreachable servers, fingerprint
+  mismatches, authentication failures, and successful connections.
+
 ## 1.0.1 - 2026-07-29
 
 - Save first-run server settings and the server password before attempting the

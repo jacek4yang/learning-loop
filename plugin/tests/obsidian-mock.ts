@@ -26,3 +26,7 @@ export function normalizePath(path: string): string {
     .replaceAll(/\/+/gu, "/")
     .replace(/^\/|\/$/gu, "");
 }
+
+export function requestUrl(): Promise<never> {
+  return Promise.reject(new Error("requestUrl is not available in unit tests"));
+}

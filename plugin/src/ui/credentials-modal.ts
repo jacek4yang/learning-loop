@@ -15,15 +15,25 @@ export interface SetupCredentials extends ServerSettings {
   readonly clientPassword: string;
 }
 
+export interface ConnectionTestCredentials extends ServerSettings {
+  readonly serverPassword: string;
+}
+
+export type ConnectionTester = (
+  credentials: ConnectionTestCredentials,
+) => Promise<void>;
+
 export function requestSetupCredentials(
   app: App,
   existing?: ServerSettings,
   hasStoredServerPassword = false,
+  testConnection?: ConnectionTester,
 ): Promise<SetupCredentials | undefined> {
   return new SetupModal(
     app,
     existing,
     hasStoredServerPassword,
+    testConnection,
   ).result();
 }
 
@@ -44,11 +54,14 @@ class SetupModal extends Modal {
   private serverPassword = "";
   private clientPassword = "";
   private deviceName: string;
+  private testingConnection = false;
+  private connectionTestResult: HTMLElement | undefined;
 
   constructor(
     app: App,
     existing: ServerSettings | undefined,
     private readonly hasStoredServerPassword: boolean,
+    private readonly testConnection: ConnectionTester | undefined,
   ) {
     super(app);
     this.host = existing?.host ?? "";
@@ -92,6 +105,7 @@ class SetupModal extends Modal {
       this.host,
       (value) => {
         this.host = value;
+        this.clearConnectionTestResult();
       },
     );
     this.addText(
@@ -102,6 +116,7 @@ class SetupModal extends Modal {
       this.port,
       (value) => {
         this.port = value;
+        this.clearConnectionTestResult();
       },
     );
     this.addText(
@@ -112,6 +127,7 @@ class SetupModal extends Modal {
       this.fingerprint,
       (value) => {
         this.fingerprint = value;
+        this.clearConnectionTestResult();
       },
     );
 
@@ -131,6 +147,7 @@ class SetupModal extends Modal {
       this.hasStoredServerPassword,
       (value) => {
         this.serverPassword = value;
+        this.clearConnectionTestResult();
       },
     );
     this.addPassword(
@@ -157,39 +174,70 @@ class SetupModal extends Modal {
     const actions = this.contentEl.createDiv({
       cls: "learning-loop-config-actions",
     });
-    new Setting(actions)
+    const testResult = actions.createDiv({
+      cls: "learning-loop-connection-test-result",
+      attr: { role: "status", "aria-live": "polite" },
+    });
+    this.connectionTestResult = testResult;
+    const actionSetting = new Setting(actions);
+    const testConnection = this.testConnection;
+    if (testConnection !== undefined) {
+      actionSetting.addButton((button) => {
+        button
+          .setButtonText("测试连接")
+          .onClick(() => {
+            const server = this.validatedServer(error, false);
+            if (server === undefined || !this.validServerPassword(error)) {
+              return;
+            }
+            this.testingConnection = true;
+            error.empty();
+            testResult.dataset.state = "testing";
+            testResult.setText("正在测试服务器、指纹和访问密码…");
+            button.setDisabled(true).setButtonText("正在测试…");
+            const inputs = [
+              ...this.contentEl.querySelectorAll<HTMLInputElement>("input"),
+            ];
+            for (const input of inputs) {
+              input.disabled = true;
+            }
+            void testConnection({
+              ...server,
+              serverPassword: this.serverPassword,
+            }).then(() => {
+              testResult.dataset.state = "success";
+              testResult.setText(
+                "连接成功：服务器可达，指纹和服务器访问密码均已通过验证。",
+              );
+            }).catch((connectionError: unknown) => {
+              testResult.dataset.state = "error";
+              testResult.setText(
+                connectionError instanceof Error
+                  ? `连接失败：${connectionError.message}`
+                  : "连接失败：请检查服务器地址、端口、指纹和访问密码。",
+              );
+            }).finally(() => {
+              this.testingConnection = false;
+              button.setDisabled(false).setButtonText("测试连接");
+              for (const input of inputs) {
+                input.disabled = false;
+              }
+            });
+          });
+      });
+    }
+    actionSetting
       .addButton((button) => {
         button
           .setButtonText("保存并连接")
           .setCta()
           .onClick(() => {
-            const port = Number(this.port);
-            let server: ServerSettings;
-            try {
-              server = normalizeServerSettings({
-                host: this.host,
-                port,
-                fingerprint: this.fingerprint,
-                deviceName: this.deviceName,
-              });
-            } catch {
-              error.setText(
-                "请检查主机名、1–65535 端口、完整服务器指纹和设备名称。",
-              );
+            if (this.testingConnection) {
+              error.setText("请等待连接测试结束后再保存。");
               return;
             }
-            if (
-              !this.hasStoredServerPassword
-              && this.serverPassword.length < 16
-            ) {
-              error.setText("服务器访问密码至少需要 16 个字符。");
-              return;
-            }
-            if (
-              this.serverPassword.length > 0
-              && this.serverPassword.length < 16
-            ) {
-              error.setText("新的服务器访问密码至少需要 16 个字符。");
+            const server = this.validatedServer(error, true);
+            if (server === undefined || !this.validServerPassword(error)) {
               return;
             }
             if (!strongClientPassword(this.clientPassword)) {
@@ -222,6 +270,7 @@ class SetupModal extends Modal {
   override onClose(): void {
     this.serverPassword = "";
     this.clientPassword = "";
+    this.connectionTestResult = undefined;
     this.contentEl.empty();
     if (!this.settled) {
       this.settled = true;
@@ -280,6 +329,58 @@ class SetupModal extends Modal {
           .setPlaceholder(placeholder)
           .onChange(update);
       });
+  }
+
+  private validatedServer(
+    error: HTMLElement,
+    requireDeviceName: boolean,
+  ): ServerSettings | undefined {
+    try {
+      return normalizeServerSettings({
+        host: this.host,
+        port: Number(this.port),
+        fingerprint: this.fingerprint,
+        deviceName: requireDeviceName
+          ? this.deviceName
+          : this.deviceName.trim() || "连接测试",
+      });
+    } catch {
+      error.setText(
+        requireDeviceName
+          ? "请检查主机名、1–65535 端口、完整服务器指纹和设备名称。"
+          : "请检查主机名、1–65535 端口和完整服务器指纹。",
+      );
+      return undefined;
+    }
+  }
+
+  private validServerPassword(error: HTMLElement): boolean {
+    if (
+      !this.hasStoredServerPassword
+      && this.serverPassword.length < 16
+    ) {
+      error.setText("服务器访问密码至少需要 16 个字符。");
+      return false;
+    }
+    if (
+      this.serverPassword.length > 0
+      && this.serverPassword.length < 16
+    ) {
+      error.setText("新的服务器访问密码至少需要 16 个字符。");
+      return false;
+    }
+    return true;
+  }
+
+  private clearConnectionTestResult(): void {
+    if (
+      this.connectionTestResult === undefined
+      || this.testingConnection
+    ) {
+      return;
+    }
+    delete this.connectionTestResult.dataset.state;
+    this.connectionTestResult.empty();
   }
 
   private finish(value: SetupCredentials): void {
