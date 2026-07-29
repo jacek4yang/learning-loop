@@ -14,6 +14,10 @@ export interface SidebarState {
   readonly configured: boolean;
   readonly unlocked: boolean;
   readonly serverSummary: string;
+  readonly currentNode: string;
+  readonly topicCount: number;
+  readonly nodeCount: number;
+  readonly masteredCount: number;
 }
 
 export interface SidebarActions {
@@ -26,6 +30,12 @@ export interface SidebarActions {
   continueNode(): Promise<void>;
   quickQuestion(): Promise<void>;
   reviewToday(): void;
+  searchLearning(): Promise<void>;
+  openTree(): Promise<void>;
+  openCurrentMap(): Promise<void>;
+  openToday(): Promise<void>;
+  openCreateHub(): void;
+  copyAiContext(): Promise<void>;
 }
 
 export class LearningLoopSidebarView extends ItemView {
@@ -96,49 +106,39 @@ export class LearningLoopSidebarView extends ItemView {
     });
     connection.createEl("p", { text: state.serverSummary });
 
-    this.addSectionTitle("同步");
-    const syncActions = this.contentEl.createDiv({
-      cls: "learning-loop-sidebar-actions",
+    const current = this.contentEl.createDiv({
+      cls: "learning-loop-sidebar-current",
     });
-    this.addQuickAction(
-      syncActions,
-      state.configured ? "修改配置" : "开始配置",
-      state.configured ? "查看已保存的服务器信息" : "连接你的 Learning Loop 服务器",
-      "settings-2",
-      () => this.actions.configure(),
-      !state.configured,
-    );
-    this.addQuickAction(
-      syncActions,
-      "解锁",
-      "输入客户端密码并立即同步",
-      "key-round",
-      () => this.actions.unlock(),
-      state.configured && !state.unlocked,
-      !state.configured || state.unlocked,
-    );
-    this.addQuickAction(
-      syncActions,
-      "立即同步",
-      state.unlocked ? "拉取、合并并上传更改" : "将先引导配置或解锁",
-      "refresh-cw",
-      () => this.actions.syncNow(),
-      state.unlocked,
-    );
-    this.addQuickAction(
-      syncActions,
-      "锁定",
-      "清除内存中的本机密钥",
-      "lock-keyhole",
-      () => {
-        this.actions.lock();
-        return Promise.resolve();
-      },
-      false,
-      !state.unlocked,
-    );
+    current.createEl("span", {
+      cls: "learning-loop-sidebar-eyebrow",
+      text: "现在做什么",
+    });
+    current.createEl("strong", {
+      text: state.currentNode,
+    });
+    current.createEl("small", {
+      text: `${state.topicCount.toString()} 个主题 · ${
+        state.nodeCount.toString()
+      } 个节点 · ${state.masteredCount.toString()} 个已掌握`,
+    });
 
-    this.addSectionTitle("继续学习");
+    this.addSectionTitle("学习工作台");
+    const tools = this.contentEl.createDiv({
+      cls: "learning-loop-sidebar-tools",
+    });
+    this.addToolAction(tools, "搜索", "search", () => this.actions.searchLearning());
+    this.addToolAction(tools, "知识树", "waypoints", () => this.actions.openTree());
+    this.addToolAction(tools, "白板", "layout-dashboard", () =>
+      this.actions.openCurrentMap());
+    this.addToolAction(tools, "今日", "calendar-days", () => this.actions.openToday());
+    this.addToolAction(tools, "新建", "square-plus", () => {
+      this.actions.openCreateHub();
+      return Promise.resolve();
+    }, true);
+    this.addToolAction(tools, "复制给 AI", "copy", () =>
+      this.actions.copyAiContext());
+
+    this.addSectionTitle("下一步");
     const learningActions = this.contentEl.createDiv({
       cls: "learning-loop-sidebar-actions",
     });
@@ -180,6 +180,57 @@ export class LearningLoopSidebarView extends ItemView {
       "仅创建缺失的文件夹和模板",
       "folder-plus",
       () => this.actions.initializeVault(),
+    );
+
+    const syncPanel = this.contentEl.createEl("details", {
+      cls: "learning-loop-sidebar-sync-panel",
+      attr: state.status === "error" || !state.unlocked
+        ? { open: "true" }
+        : {},
+    });
+    const syncSummary = syncPanel.createEl("summary");
+    const syncSummaryIcon = syncSummary.createSpan();
+    setIcon(syncSummaryIcon, "shield-check");
+    syncSummary.createSpan({ text: "同步与安全" });
+    const syncActions = syncPanel.createDiv({
+      cls: "learning-loop-sidebar-actions",
+    });
+    this.addQuickAction(
+      syncActions,
+      state.configured ? "修改配置" : "开始配置",
+      state.configured ? "查看已保存的服务器信息" : "连接你的 Learning Loop 服务器",
+      "settings-2",
+      () => this.actions.configure(),
+      !state.configured,
+    );
+    this.addQuickAction(
+      syncActions,
+      "解锁",
+      "输入客户端密码并立即同步",
+      "key-round",
+      () => this.actions.unlock(),
+      state.configured && !state.unlocked,
+      !state.configured || state.unlocked,
+    );
+    this.addQuickAction(
+      syncActions,
+      "立即同步",
+      state.unlocked ? "拉取、合并并上传更改" : "将先引导配置或解锁",
+      "refresh-cw",
+      () => this.actions.syncNow(),
+      state.unlocked,
+    );
+    this.addQuickAction(
+      syncActions,
+      "锁定",
+      "清除内存中的本机密钥",
+      "lock-keyhole",
+      () => {
+        this.actions.lock();
+        return Promise.resolve();
+      },
+      false,
+      !state.unlocked,
     );
 
     this.contentEl.createEl("p", {
@@ -227,6 +278,34 @@ export class LearningLoopSidebarView extends ItemView {
       button.disabled = true;
       void action().finally(() => {
         this.render();
+      });
+    });
+  }
+
+  private addToolAction(
+    container: HTMLElement,
+    name: string,
+    iconName: string,
+    action: () => Promise<void>,
+    primary = false,
+  ): void {
+    const button = container.createEl("button", {
+      cls: [
+        "learning-loop-sidebar-tool",
+        ...(primary ? ["is-primary"] : []),
+      ],
+      attr: {
+        type: "button",
+        "aria-label": name,
+      },
+    });
+    const icon = button.createSpan();
+    setIcon(icon, iconName);
+    button.createSpan({ text: name });
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      void action().finally(() => {
+        button.disabled = false;
       });
     });
   }

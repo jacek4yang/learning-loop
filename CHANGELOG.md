@@ -3,6 +3,32 @@
 All notable changes are documented here. Learning Loop follows semantic
 versioning for the server protocol implementation and Obsidian plugin package.
 
+## 1.1.0 - 2026-07-29
+
+- Replace browser-unsupported Rust `Instant` and `SystemTime` calls with
+  WebAssembly-compatible monotonic and wall clocks.
+- Generate UUIDv7 identifiers from an explicitly supplied browser-compatible
+  timestamp instead of `Uuid::now_v7`.
+- Add a Node-hosted WebAssembly runtime smoke test that creates a vault,
+  generates and encrypts a device identity, then unlocks and restores it.
+- Keep newly written Learning Loop properties available until Obsidian's
+  asynchronous metadata cache catches up, so topic outlines create their nodes
+  reliably on the first attempt.
+- Add a reversible focused workspace that hides unrelated Obsidian ribbon and
+  status-bar actions while keeping Learning Loop's encrypted synchronization,
+  learning tools, and current task visible.
+- Add a clickable visual knowledge tree with topic progress, current-node
+  highlighting, verification and confidence indicators, filtering, and direct
+  note navigation.
+- Add a unified creation center and consistent card-based Chinese forms for
+  topics, nodes, review cards, English terms, papers, and technical records.
+- Add one-click generation of a structured AI learning context, including a
+  safe topic tree, current note, related summaries, suggested tutoring flow,
+  and automatic omission of content that resembles credentials.
+- Add a standalone illustrated Chinese HTML handbook covering the complete
+  workflow, Markdown usage, English learning, programming practice, paper
+  reading, cross-domain synthesis, review, synchronization, and recovery.
+
 ## 1.0.3 - 2026-07-29
 
 - Distinguish an uninitialized server from one that already contains an

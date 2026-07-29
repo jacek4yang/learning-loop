@@ -52,6 +52,13 @@ async function packagePlugin() {
     "versions.json",
   ];
   const entries = await filesAsEntries(pluginDirectory, names);
+  const handbook = await readFile(
+    join(repository, "docs", "learning-loop-handbook.zh-CN.html"),
+  );
+  entries.push({
+    name: "Learning-Loop-Handbook.zh-CN.html",
+    bytes: handbook,
+  });
   entries.push({
     name: "LICENSE",
     bytes: await readFile(join(repository, "LICENSE")),
@@ -62,6 +69,10 @@ async function packagePlugin() {
     `learning-loop-plugin-${version}.zip`,
   );
   await writeFile(output, zip(entries));
+  await writeFile(
+    join(releaseDirectory, `learning-loop-handbook-${version}.zh-CN.html`),
+    handbook,
+  );
   console.log(output);
 }
 

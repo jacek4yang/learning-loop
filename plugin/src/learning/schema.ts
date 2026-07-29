@@ -197,5 +197,29 @@ export interface LearningNode {
   readonly order: number;
   readonly status: string;
   readonly current: boolean;
+  readonly confidence: string;
+  readonly verified: boolean;
+  readonly mastered: boolean;
   readonly related: readonly string[];
+}
+
+export interface LearningTreeNode {
+  readonly id: string;
+  readonly path: string;
+  readonly title: string;
+  readonly status: string;
+  readonly current: boolean;
+  readonly confidence: string;
+  readonly verified: boolean;
+  readonly mastered: boolean;
+  readonly children: readonly LearningTreeNode[];
+}
+
+export interface LearningTreeTopic {
+  readonly id: string;
+  readonly path: string;
+  readonly title: string;
+  readonly mastered: number;
+  readonly total: number;
+  readonly roots: readonly LearningTreeNode[];
 }

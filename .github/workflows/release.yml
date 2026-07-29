@@ -113,6 +113,7 @@ jobs:
           path: |
             release/learning-loop-plugin-*.zip
             release/learning-loop-plugin-*.cdx.json
+            release/learning-loop-handbook-*.html
           if-no-files-found: error
 
   source-sbom:

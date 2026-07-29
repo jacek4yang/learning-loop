@@ -103,6 +103,9 @@ describe("deterministic maps", () => {
       order: 1,
       status: "learning",
       current: false,
+      confidence: "medium",
+      verified: false,
+      mastered: false,
       related: ["child-a"],
     },
     {
@@ -113,6 +116,9 @@ describe("deterministic maps", () => {
       order: 0,
       status: "learning",
       current: false,
+      confidence: "medium",
+      verified: false,
+      mastered: false,
       related: [],
     },
     {
@@ -124,6 +130,9 @@ describe("deterministic maps", () => {
       order: 0,
       status: "learning",
       current: true,
+      confidence: "high",
+      verified: true,
+      mastered: false,
       related: ["child-b"],
     },
   ];

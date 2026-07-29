@@ -29,15 +29,21 @@ import {
   openReviewModal,
   requestCardInput,
   requestFile,
+  requestOperationsInput,
   requestText,
   requestTopicInput,
 } from "./ui/learning-modals";
+import { openCreateHub } from "./ui/create-hub-modal";
 import { MobileSyncModal } from "./ui/mobile-sync-modal";
 import {
   LEARNING_LOOP_SIDEBAR_VIEW,
   LearningLoopSidebarView,
   type SidebarState,
 } from "./ui/sidebar-view";
+import {
+  LEARNING_LOOP_TREE_VIEW,
+  LearningTreeView,
+} from "./ui/tree-view";
 
 const PERIODIC_SYNC_MS = 5 * 60 * 1000;
 
@@ -53,8 +59,10 @@ export default class LearningLoopPlugin extends Plugin {
   private syncTask: Promise<void> | undefined;
   private lastNoticeMessage = "";
   private lastNoticeAt = 0;
+  private focusMode = true;
 
   override onload(): void {
+    this.applyFocusMode(true);
     this.registerView(
       LEARNING_LOOP_SIDEBAR_VIEW,
       (leaf) => new LearningLoopSidebarView(
@@ -73,17 +81,38 @@ export default class LearningLoopPlugin extends Plugin {
           reviewToday: () => {
             this.openReviews();
           },
+          searchLearning: () => this.searchLearning(),
+          openTree: () => this.openTree(),
+          openCurrentMap: () => this.openCurrentPath(),
+          openToday: () => this.openToday(),
+          openCreateHub: () => {
+            this.openCreateHub();
+          },
+          copyAiContext: () => this.copyAiContext(),
         },
         () => this.sidebarState(),
       ),
     );
-    this.addRibbonIcon("brain-circuit", "打开 Learning Loop", () => {
+    this.registerView(
+      LEARNING_LOOP_TREE_VIEW,
+      (leaf) => new LearningTreeView(
+        leaf,
+        () => this.learning?.treeSnapshot() ?? [],
+        {
+          openFile: (path) => this.openLearningFile(path),
+          createTopic: () => this.createTopic(),
+          copyAiContext: () => this.copyAiContext(),
+        },
+      ),
+    );
+    const ribbon = this.addRibbonIcon("brain-circuit", "打开 Learning Loop", () => {
       if (Platform.isMobile) {
         this.openMobileSyncPanel();
       } else {
         void this.openSidebar();
       }
     });
+    ribbon.addClass("learning-loop-ribbon-entry");
     this.addCommand({
       id: "configure-encrypted-sync",
       name: "配置加密同步",
@@ -126,6 +155,13 @@ export default class LearningLoopPlugin extends Plugin {
         void this.openSidebar();
       },
     });
+    this.addCommand({
+      id: "toggle-focus-mode",
+      name: "切换 Learning Loop 专注模式",
+      callback: () => {
+        void this.setFocusMode(!this.focusMode);
+      },
+    });
     this.registerLearningCommands();
     this.addSettingTab(new LearningLoopSettingTab(this.app, this));
     if (Platform.isDesktopApp) {
@@ -140,6 +176,7 @@ export default class LearningLoopPlugin extends Plugin {
 
   override onunload(): void {
     this.controller?.lock();
+    document.body.classList.remove("learning-loop-focus-mode");
   }
 
   get statusLabel(): string {
@@ -156,6 +193,10 @@ export default class LearningLoopPlugin extends Plugin {
 
   get serverPasswordStored(): boolean {
     return this.controller?.serverPasswordStored ?? false;
+  }
+
+  get focusModeEnabled(): boolean {
+    return this.focusMode;
   }
 
   get connectionSummary(): string {
@@ -212,6 +253,84 @@ export default class LearningLoopPlugin extends Plugin {
     }
     await this.app.workspace.revealLeaf(leaf);
     this.updateSidebar();
+  }
+
+  async openTree(): Promise<void> {
+    let leaf = this.app.workspace.getLeavesOfType(
+      LEARNING_LOOP_TREE_VIEW,
+    )[0];
+    if (leaf === undefined) {
+      leaf = this.app.workspace.getLeaf(true);
+      await leaf.setViewState({
+        type: LEARNING_LOOP_TREE_VIEW,
+        active: true,
+      });
+    }
+    await this.app.workspace.revealLeaf(leaf);
+    if (leaf.view instanceof LearningTreeView) {
+      leaf.view.update();
+    }
+  }
+
+  async searchLearning(): Promise<void> {
+    const file = await requestFile(
+      this.app,
+      "搜索 Learning Loop 主题、节点、资料、记录和复习卡",
+      required(this.learning).learningFiles(),
+    );
+    if (file !== undefined) {
+      await this.app.workspace.getLeaf(false).openFile(file);
+    }
+  }
+
+  async openToday(): Promise<void> {
+    await this.runUserAction(
+      () => required(this.learning).openTodayDashboard().then(() => undefined),
+      "今天的学习面板已准备好。",
+    );
+  }
+
+  openCreateHub(): void {
+    openCreateHub(this.app, {
+      createTopic: () => this.createTopic(),
+      createNode: () => this.createNodeFromActiveContext(),
+      createCard: () => this.createReviewCard(),
+      createEnglishTerm: () => this.recordEnglishTerm(),
+      createPaper: () => this.createPaper(),
+      createOperationsRecord: () => this.createOperationsFromHub(),
+    });
+  }
+
+  async copyAiContext(): Promise<void> {
+    await this.runUserAction(async () => {
+      const active = this.app.workspace.getActiveFile() ?? undefined;
+      const context = await required(this.learning).buildAiContext(active);
+      await navigator.clipboard.writeText(context);
+    }, "当前学习上下文已复制，可以直接粘贴给 AI。");
+  }
+
+  async createOperationsFromHub(): Promise<void> {
+    const input = await requestOperationsInput(this.app);
+    if (input === undefined) {
+      return;
+    }
+    await this.runUserAction(async () => {
+      const file = await required(this.learning).createOperationsRecord(
+        input.kind,
+        input.title,
+      );
+      await this.app.workspace.getLeaf(false).openFile(file);
+    }, "技术运行记录已创建。");
+  }
+
+  async setFocusMode(enabled: boolean): Promise<void> {
+    await this.settingsRepository.setFocusMode(enabled);
+    this.applyFocusMode(enabled);
+    this.notify(
+      enabled
+        ? "已进入 Learning Loop 专注模式。"
+        : "已恢复 Obsidian 原生工具与状态栏。",
+    );
   }
 
   private async configureOnce(): Promise<void> {
@@ -652,6 +771,7 @@ export default class LearningLoopPlugin extends Plugin {
 
   private async initializeRuntime(): Promise<void> {
     this.learning = new LearningService(this.app);
+    this.applyFocusMode((await this.settingsRepository.load()).focusMode);
     this.controller = new SyncController(
       this.app,
       this.manifest.id,
@@ -670,16 +790,20 @@ export default class LearningLoopPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("create", (file) => {
       if (isFile(file)) {
         void this.controller?.handleContentEvent(file.path);
+        this.updateLearningViews();
       }
     }));
     this.registerEvent(this.app.vault.on("modify", (file) => {
       void this.controller?.handleContentEvent(file.path);
+      this.updateLearningViews();
     }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
       this.controller?.handlePathEvent(oldPath, file.path);
+      this.updateLearningViews();
     }));
     this.registerEvent(this.app.vault.on("delete", (file) => {
       this.controller?.handlePathEvent(file.path);
+      this.updateLearningViews();
       if (this.learning?.isDeletedAutoMap(file.path) === true) {
         this.registerInterval(window.setTimeout(() => {
           void this.learning?.generateAllMaps().catch(() => undefined);
@@ -688,6 +812,7 @@ export default class LearningLoopPlugin extends Plugin {
     }));
     this.registerEvent(this.app.metadataCache.on("changed", (file) => {
       this.learning?.metadataChanged(file);
+      this.updateLearningViews();
     }));
     this.registerInterval(window.setInterval(() => {
       if (
@@ -772,6 +897,8 @@ export default class LearningLoopPlugin extends Plugin {
     const controller = this.controller;
     const server = controller?.server;
     const configured = controller?.configured ?? false;
+    const tree = this.learning?.treeSnapshot() ?? [];
+    const current = this.learning?.currentNode();
     return {
       status: controller?.status ?? "unconfigured",
       statusText: this.statusText,
@@ -782,6 +909,12 @@ export default class LearningLoopPlugin extends Plugin {
         : configured
         ? `${server.deviceName} · ${server.host}:${server.port.toString()}`
         : `${server.host}:${server.port.toString()} 已保存，等待完成首次安全连接。`,
+      currentNode: current === undefined
+        ? "创建主题，或在知识树中选择一个节点"
+        : current.basename,
+      topicCount: tree.length,
+      nodeCount: tree.reduce((sum, topic) => sum + topic.total, 0),
+      masteredCount: tree.reduce((sum, topic) => sum + topic.mastered, 0),
     };
   }
 
@@ -795,6 +928,32 @@ export default class LearningLoopPlugin extends Plugin {
         leaf.view.update();
       }
     }
+  }
+
+  private updateLearningViews(): void {
+    this.updateSidebar();
+    for (
+      const leaf of this.app.workspace.getLeavesOfType(
+        LEARNING_LOOP_TREE_VIEW,
+      )
+    ) {
+      if (leaf.view instanceof LearningTreeView) {
+        leaf.view.update();
+      }
+    }
+  }
+
+  private async openLearningFile(path: string): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!isFile(file)) {
+      throw new Error("learning note is missing");
+    }
+    await this.app.workspace.getLeaf(false).openFile(file);
+  }
+
+  private applyFocusMode(enabled: boolean): void {
+    this.focusMode = enabled;
+    document.body.classList.toggle("learning-loop-focus-mode", enabled);
   }
 
   private notify(message: string): void {
@@ -811,6 +970,34 @@ export default class LearningLoopPlugin extends Plugin {
   }
 
   private registerLearningCommands(): void {
+    this.addCommand({
+      id: "open-learning-workbench",
+      name: "打开学习工作台",
+      callback: () => {
+        void this.openSidebar();
+      },
+    });
+    this.addCommand({
+      id: "open-knowledge-tree",
+      name: "打开可视化知识学习树",
+      callback: () => {
+        void this.openTree();
+      },
+    });
+    this.addCommand({
+      id: "open-create-hub",
+      name: "打开统一创建中心",
+      callback: () => {
+        this.openCreateHub();
+      },
+    });
+    this.addCommand({
+      id: "copy-ai-learning-context",
+      name: "复制当前学习上下文给 AI",
+      callback: () => {
+        void this.copyAiContext();
+      },
+    });
     this.addCommand({
       id: "initialize-learning-vault",
       name: "初始化学习空间和模板",
@@ -1085,6 +1272,7 @@ export default class LearningLoopPlugin extends Plugin {
   ): Promise<void> {
     try {
       await action();
+      this.updateLearningViews();
       this.notify(success);
     } catch (error) {
       this.notify(`Learning Loop：${userFacingErrorMessage(error)}`);
@@ -1108,6 +1296,18 @@ class LearningLoopSettingTab extends PluginSettingTab {
     new Setting(this.containerEl)
       .setName("同步状态")
       .setDesc(this.learningLoop.statusLabel);
+    new Setting(this.containerEl)
+      .setName("Learning Loop 专注模式")
+      .setDesc("隐藏无关的左侧工具和状态栏项目，只保留学习工作台；关闭后可恢复原生 Obsidian 界面。")
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.learningLoop.focusModeEnabled)
+          .onChange((value) => {
+            void this.learningLoop.setFocusMode(value).then(() => {
+              this.display();
+            });
+          });
+      });
     this.containerEl.createEl("h3", { text: "连接与安全" });
     new Setting(this.containerEl)
       .setName("已保存的设备配置")

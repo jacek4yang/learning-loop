@@ -15,7 +15,7 @@ wasm-pack, cargo-audit, cargo-deny, and cargo-mutants 27.1.0.
 | RustSec advisory audit | no known vulnerability |
 | cargo-deny advisories/licenses/sources | passed; duplicate versions are warnings |
 | TypeScript typecheck and ESLint | passed |
-| Vitest and fast-check | 45 passed |
+| Vitest, fast-check, and Node-hosted production WASM runtime | 55 passed |
 | Production WebAssembly/plugin build | passed |
 | pnpm high-severity audit | no known vulnerability |
 | Windows x86-64 server release build/package | passed; archives extracted and every internal SHA-256 verified |
@@ -33,11 +33,13 @@ These claims have **not** been fabricated:
 | Environment | Status |
 | --- | --- |
 | Windows development host, unit/integration/build tests | passed |
-| Windows Obsidian desktop, installed package, two real Vaults | not run; Obsidian is unavailable on this host |
+| Windows 11, Obsidian 1.12.7, installed v1.1.0 plugin | passed in `D:\knowledge-loop` |
+| Real first-device encrypted setup against supplied DDNS server | passed; fingerprint and server-password test, device registration, encrypted vault creation, initial push, restart unlock, pull, and subsequent pushes completed |
+| Real learning workflows in Obsidian | passed; topic outline, 9-node tree, current-node selection, inline question, AI context, review scheduling, English term/card, paper, incident record, source distillation, Canvas map, daily dashboard, search, focus-mode restore, and automatic synchronization |
+| Real DDNS/NAT network interruption and recovery | partial; live DDNS path passed, deliberate outage/recovery was not injected |
 | Linux Obsidian desktop | not run; no Linux host is connected |
 | macOS Intel and Apple silicon Obsidian desktop | not run; no macOS host is connected |
 | Android emulator and physical device | not run; Android SDK/emulator/device is unavailable |
-| Real DDNS/NAT network interruption and recovery | not run; no deployment endpoint was supplied |
 | Disk-full and externally held SQLite-lock injection | not run on a disposable host |
 
 The portable filesystem profiles, transport probe, black-box TCP server,
@@ -47,8 +49,10 @@ substitute for the real-host rows above.
 
 ## Release decision
 
-The repository and packages are suitable for a public evaluation release.
-Version 1.0.0 is not yet qualified as the only synchronization path for
-important data: complete the unrun real-host rows, retain independent Vault
-backups, and record any observed Obsidian/mobile lifecycle differences before
-making that production claim.
+The repository and v1.1.0 packages are suitable for a public evaluation
+release. The real Windows/Obsidian/server path is now verified, including
+encrypted first setup, restart unlock, persisted configuration, automatic
+synchronization, and the principal learning workflows. Android, macOS, Linux
+Obsidian, deliberate WAN interruption, and destructive storage fault tests
+remain outstanding; retain independent Vault backups until the applicable rows
+are completed.

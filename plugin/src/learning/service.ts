@@ -29,9 +29,11 @@ import {
   type CardType,
   type LearningNode,
   type LearningObjectType,
+  type LearningTreeNode,
+  type LearningTreeTopic,
   type ReviewGrade,
 } from "./schema";
-import { rejectLikelySecrets } from "./secrets";
+import { containsLikelySecrets, rejectLikelySecrets } from "./secrets";
 
 const AUTO_MAP_SUFFIXES = [
   " - Structure.canvas",
@@ -43,6 +45,13 @@ const AUTO_MAP_SUFFIXES = [
 type Properties = Record<string, unknown>;
 type OperationsKind = keyof typeof OPERATIONS_TEMPLATES;
 
+interface PendingPropertyUpdate {
+  readonly generation: number;
+  readonly expected: Properties;
+  completed: boolean;
+  reconcileScheduled: boolean;
+}
+
 export interface TopicCreationResult {
   readonly topic: TFile;
   readonly nodes: readonly TFile[];
@@ -50,6 +59,11 @@ export interface TopicCreationResult {
 
 export class LearningService {
   private readonly propertyOverrides = new Map<string, Properties>();
+  private readonly pendingPropertyUpdates = new Map<
+    string,
+    PendingPropertyUpdate
+  >();
+  private propertyUpdateGeneration = 0;
 
   constructor(
     private readonly app: App,
@@ -67,7 +81,12 @@ export class LearningService {
   }
 
   metadataChanged(file: TFile): void {
-    this.propertyOverrides.delete(file.path);
+    const pending = this.pendingPropertyUpdates.get(file.path);
+    if (pending === undefined) {
+      this.propertyOverrides.delete(file.path);
+      return;
+    }
+    this.reconcilePropertyOverride(file, pending);
   }
 
   async createTopic(
@@ -622,11 +641,14 @@ export class LearningService {
     if (existing instanceof TFile) {
       await this.app.vault.process(existing, () => body);
       file = existing;
+      await this.applyDisplayDefault(file);
     } else if (existing === null) {
       file = await this.app.vault.create(path, body);
       await this.updateProperties(file, {
+        cssclasses: ["learning-loop-note"],
         ll_id: randomId(),
         ll_type: "record",
+        ll_title: `${today} Learning Loop`,
         ll_record_kind: "daily",
         ll_created: this.now().toISOString(),
       });
@@ -645,6 +667,139 @@ export class LearningService {
   nodes(): TFile[] {
     return this.filesByType("node")
       .sort((left, right) => left.path.localeCompare(right.path, "und"));
+  }
+
+  learningFiles(): TFile[] {
+    return this.app.vault.getMarkdownFiles()
+      .filter((file) => this.properties(file).ll_type !== undefined)
+      .sort((left, right) => left.path.localeCompare(right.path, "zh-Hans-CN"));
+  }
+
+  treeSnapshot(): readonly LearningTreeTopic[] {
+    return this.topics().map((topic) => {
+      const topicProperties = this.properties(topic);
+      const topicId = propertyString(topicProperties, "ll_id");
+      const nodes = this.learningNodes(topicId);
+      const byParent = new Map<string | undefined, LearningNode[]>();
+      for (const node of nodes) {
+        const siblings = byParent.get(node.parent) ?? [];
+        siblings.push(node);
+        byParent.set(node.parent, siblings);
+      }
+      for (const siblings of byParent.values()) {
+        siblings.sort(compareLearningNode);
+      }
+      const visited = new Set<string>();
+      const build = (node: LearningNode): LearningTreeNode => {
+        if (visited.has(node.id)) {
+          return { ...treeNodeFields(node), children: [] };
+        }
+        visited.add(node.id);
+        return {
+          ...treeNodeFields(node),
+          children: (byParent.get(node.id) ?? []).map(build),
+        };
+      };
+      const roots = (byParent.get(undefined) ?? []).map(build);
+      for (const node of nodes) {
+        if (!visited.has(node.id)) {
+          roots.push(build(node));
+        }
+      }
+      return {
+        id: topicId,
+        path: topic.path,
+        title: propertyStringOptional(topicProperties, "ll_title")
+          ?? topic.basename,
+        mastered: nodes.filter((node) => node.mastered).length,
+        total: nodes.length,
+        roots,
+      };
+    });
+  }
+
+  async buildAiContext(active?: TFile): Promise<string> {
+    const selected = active
+      ?? this.currentNode()
+      ?? this.topics()[0];
+    if (selected === undefined) {
+      return [
+        "# Learning Loop AI 学习上下文",
+        "",
+        "当前还没有学习主题。请先创建主题，再把这份上下文交给 AI。",
+      ].join("\n");
+    }
+    const topic = this.isType(selected, "topic")
+      ? selected
+      : this.isType(selected, "node")
+      ? this.topicForNode(selected)
+      : this.currentNode() === undefined
+      ? undefined
+      : this.topicForNode(required(this.currentNode()));
+    if (topic === undefined) {
+      throw new Error("no learning topic is available for AI context");
+    }
+    const topicId = propertyString(this.properties(topic), "ll_id");
+    const nodes = this.learningNodes(topicId);
+    const selectedNode = this.isType(selected, "node")
+      ? selected
+      : nodes.find((node) => node.current) === undefined
+      ? undefined
+      : this.requireFile(required(nodes.find((node) => node.current)).path);
+    const lines = [
+      `# Learning Loop AI 学习上下文：${topic.basename}`,
+      "",
+      "> 这份文档由 Learning Loop 生成。请基于现有理解循序提问，指出证据缺口；不要直接跳过推理过程。",
+      "",
+      "## 我的目标",
+      "",
+      `围绕“${topic.basename}”建立可以解释、验证、复习和迁移的知识体系。`,
+      "",
+      "## 学习进度",
+      "",
+      `- 节点总数：${nodes.length.toString()}`,
+      `- 已掌握：${nodes.filter((node) => node.mastered).length.toString()}`,
+      `- 已核实：${nodes.filter((node) => node.verified).length.toString()}`,
+      `- 当前节点：${selectedNode?.basename ?? "尚未选择"}`,
+      "",
+      "## 知识树",
+      "",
+      ...aiTreeLines(nodes),
+    ];
+    if (selectedNode !== undefined) {
+      const content = await this.app.vault.read(selectedNode);
+      lines.push(
+        "",
+        "## 当前节点原文",
+        "",
+        safeAiNoteContent(content),
+      );
+    }
+    const related = nodes
+      .filter((node) => node.path !== selectedNode?.path)
+      .slice(0, 24);
+    if (related.length > 0) {
+      lines.push("", "## 相关节点摘要", "");
+      for (const node of related) {
+        const content = await this.app.vault.read(this.requireFile(node.path));
+        lines.push(
+          `### ${node.title}`,
+          "",
+          safeAiNoteContent(content, 1_200),
+          "",
+        );
+      }
+    }
+    lines.push(
+      "## 希望 AI 如何协助",
+      "",
+      "1. 先用 3—5 个问题检查我对当前节点的理解。",
+      "2. 区分事实、推断、假设和仍待验证的内容。",
+      "3. 给出一个最小可执行的验证步骤或例子。",
+      "4. 最后建议我应该更新哪个章节、创建哪个子节点或复习卡。",
+      "",
+    );
+    return lines.join("\n");
   }
 
   topicForNode(node: TFile): TFile {
@@ -838,6 +993,9 @@ export class LearningService {
           order: propertyNumber(properties, "ll_order", 0),
           status: propertyStringOptional(properties, "ll_status") ?? "learning",
           current: properties.ll_current === true,
+          confidence: propertyStringOptional(properties, "ll_confidence") ?? "medium",
+          verified: properties.ll_verified === true,
+          mastered: properties.ll_mastered === true,
           related: propertyStringArray(properties, "ll_related"),
         };
       })
@@ -912,20 +1070,24 @@ export class LearningService {
 
   private async applyDisplayDefaults(): Promise<void> {
     for (const file of this.app.vault.getMarkdownFiles()) {
-      const properties = this.properties(file);
-      if (
-        !isLearningObjectType(properties.ll_type)
-        || cssClasses(properties.cssclasses).includes("learning-loop-note")
-      ) {
-        continue;
-      }
-      await this.updateProperties(file, {
-        cssclasses: [
-          ...cssClasses(properties.cssclasses),
-          "learning-loop-note",
-        ],
-      });
+      await this.applyDisplayDefault(file);
     }
+  }
+
+  private async applyDisplayDefault(file: TFile): Promise<void> {
+    const properties = this.properties(file);
+    if (
+      !isLearningObjectType(properties.ll_type)
+      || cssClasses(properties.cssclasses).includes("learning-loop-note")
+    ) {
+      return;
+    }
+    await this.updateProperties(file, {
+      cssclasses: [
+        ...cssClasses(properties.cssclasses),
+        "learning-loop-note",
+      ],
+    });
   }
 
   private async writeAutoCanvas(path: string, content: string): Promise<void> {
@@ -1008,23 +1170,82 @@ export class LearningService {
     return properties;
   }
 
-  private updateProperties(file: TFile, change: Properties): Promise<void> {
+  private async updateProperties(
+    file: TFile,
+    change: Properties,
+  ): Promise<void> {
     const previous = this.propertyOverrides.get(file.path);
+    const previousPending = this.pendingPropertyUpdates.get(file.path);
     const next = { ...this.properties(file) };
     applyPropertyChange(next, change);
     this.propertyOverrides.set(file.path, next);
-    return this.app.fileManager.processFrontMatter(
-      file,
-      (frontmatter: Properties) => {
-        applyPropertyChange(frontmatter, change);
-      },
-    ).catch((error: unknown) => {
+    const pending: PendingPropertyUpdate = {
+      generation: ++this.propertyUpdateGeneration,
+      expected: { ...change },
+      completed: false,
+      reconcileScheduled: false,
+    };
+    this.pendingPropertyUpdates.set(file.path, pending);
+    try {
+      await this.app.fileManager.processFrontMatter(
+        file,
+        (frontmatter: Properties) => {
+          applyPropertyChange(frontmatter, change);
+        },
+      );
+    } catch (error: unknown) {
       if (previous === undefined) {
         this.propertyOverrides.delete(file.path);
       } else {
         this.propertyOverrides.set(file.path, previous);
       }
+      if (previousPending === undefined) {
+        this.pendingPropertyUpdates.delete(file.path);
+      } else {
+        this.pendingPropertyUpdates.set(file.path, previousPending);
+      }
       throw error;
+    }
+    const current = this.pendingPropertyUpdates.get(file.path);
+    if (current?.generation === pending.generation) {
+      current.completed = true;
+      this.reconcilePropertyOverride(file, current);
+    }
+  }
+
+  private reconcilePropertyOverride(
+    file: TFile,
+    pending: PendingPropertyUpdate,
+  ): void {
+    if (this.metadataContainsExpectedChange(file, pending.expected)) {
+      this.pendingPropertyUpdates.delete(file.path);
+      this.propertyOverrides.delete(file.path);
+      return;
+    }
+    if (!pending.completed || pending.reconcileScheduled) {
+      return;
+    }
+    pending.reconcileScheduled = true;
+    globalThis.setTimeout(() => {
+      const current = this.pendingPropertyUpdates.get(file.path);
+      if (current?.generation !== pending.generation) {
+        return;
+      }
+      this.pendingPropertyUpdates.delete(file.path);
+      this.propertyOverrides.delete(file.path);
+    }, 1_000);
+  }
+
+  private metadataContainsExpectedChange(
+    file: TFile,
+    expected: Properties,
+  ): boolean {
+    const cached = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
+    return Object.entries(expected).every(([key, value]) => {
+      if (value === null || value === undefined) {
+        return !Object.prototype.hasOwnProperty.call(cached, key);
+      }
+      return JSON.stringify(cached[key]) === JSON.stringify(value);
     });
   }
 }
@@ -1181,6 +1402,74 @@ function compareLearningNode(left: LearningNode, right: LearningNode): number {
   return left.order - right.order
     || left.title.localeCompare(right.title, "und")
     || left.id.localeCompare(right.id);
+}
+
+function treeNodeFields(
+  node: LearningNode,
+): Omit<LearningTreeNode, "children"> {
+  return {
+    id: node.id,
+    path: node.path,
+    title: node.title,
+    status: node.status,
+    current: node.current,
+    confidence: node.confidence,
+    verified: node.verified,
+    mastered: node.mastered,
+  };
+}
+
+function aiTreeLines(nodes: readonly LearningNode[]): string[] {
+  if (nodes.length === 0) {
+    return ["尚未创建学习节点。"];
+  }
+  const byParent = new Map<string | undefined, LearningNode[]>();
+  for (const node of nodes) {
+    const siblings = byParent.get(node.parent) ?? [];
+    siblings.push(node);
+    byParent.set(node.parent, siblings);
+  }
+  for (const siblings of byParent.values()) {
+    siblings.sort(compareLearningNode);
+  }
+  const lines: string[] = [];
+  const visited = new Set<string>();
+  const render = (node: LearningNode, depth: number): void => {
+    if (visited.has(node.id)) {
+      return;
+    }
+    visited.add(node.id);
+    const marker = node.mastered ? "x" : " ";
+    const current = node.current ? " ← 当前" : "";
+    const verified = node.verified ? " · 已核实" : " · 待核实";
+    lines.push(
+      `${"  ".repeat(depth)}- [${marker}] ${node.title}${current}${verified}`,
+    );
+    for (const child of byParent.get(node.id) ?? []) {
+      render(child, depth + 1);
+    }
+  };
+  for (const root of byParent.get(undefined) ?? []) {
+    render(root, 0);
+  }
+  for (const node of nodes) {
+    render(node, 0);
+  }
+  return lines;
+}
+
+function safeAiNoteContent(content: string, maximum = 12_000): string {
+  const withoutFrontmatter = content.replace(
+    /^---\r?\n[\s\S]*?\r?\n---\r?\n?/u,
+    "",
+  ).trim();
+  if (containsLikelySecrets(withoutFrontmatter)) {
+    return "> 为避免把疑似密码、私钥或访问令牌发送给 AI，本节内容已自动省略。";
+  }
+  if (withoutFrontmatter.length <= maximum) {
+    return withoutFrontmatter;
+  }
+  return `${withoutFrontmatter.slice(0, maximum).trimEnd()}\n\n> 内容过长，后续部分已省略。`;
 }
 
 function safeFilename(value: string): string {

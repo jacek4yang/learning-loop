@@ -1,10 +1,17 @@
+use web_time::{SystemTime, UNIX_EPOCH};
+
 /// Generates a time-sortable `UUIDv7` stable object identifier.
 ///
 /// The identifier is random with respect to note content and path. It remains
 /// attached to the logical object across rename operations.
 #[must_use]
 pub fn new_object_id() -> [u8; 16] {
-    *uuid::Uuid::now_v7().as_bytes()
+    let elapsed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let timestamp =
+        uuid::Timestamp::from_unix(uuid::NoContext, elapsed.as_secs(), elapsed.subsec_nanos());
+    *uuid::Uuid::new_v7(timestamp).as_bytes()
 }
 
 #[cfg(test)]

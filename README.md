@@ -5,10 +5,10 @@ cross-platform Obsidian learning-workflow plugin. The repository is a monorepo
 for the Rust server, shared protocol and cryptography crates, a portable
 TypeScript plugin, and a WebAssembly client core.
 
-Version 1.0 contains the authenticated Rust object service, encrypted commit
+Version 1.1 contains the authenticated Rust object service, encrypted commit
 DAG, native/WASM client core, desktop/Android-compatible synchronization, and
-Markdown-first learning workflows. Automated release gates are complete.
-Several real Obsidian host/device rows remain explicitly unrun; keep an
+Markdown-first learning workflows, a focused Learning Loop workspace, visual
+knowledge tree, and a locally generated copyable AI-learning context. Keep an
 independent Vault backup and read the validation report before relying on it.
 
 ## Security boundary
@@ -19,8 +19,10 @@ plaintext so native editing, search, and links continue to work. Users must
 protect local data with full-disk encryption such as BitLocker, FileVault, LUKS,
 or Android device encryption and a strong screen lock.
 
-The plugin will not include AI, retain AI conversations, collect telemetry, or
-send note content to third parties.
+The plugin does not contact an AI service, retain AI conversations, collect
+telemetry, or send note content to third parties. Its **Copy for AI** action
+only places a locally generated, credential-filtered Markdown context on the
+system clipboard; the user chooses whether and where to paste it.
 
 ## Development
 
@@ -40,7 +42,10 @@ The plugin production build creates ignored `plugin/main.js` and
 manifest and stylesheet. See [docs/synchronization.md](docs/synchronization.md)
 for the sync state machine,
 [docs/learning-workflows.md](docs/learning-workflows.md) for the Markdown-first
-learning model, [docs/test-matrix.md](docs/test-matrix.md) for adversarial
+learning model,
+[the illustrated Chinese handbook](docs/learning-loop-handbook.zh-CN.html) for
+the complete clickable workflow and Markdown guide,
+[docs/test-matrix.md](docs/test-matrix.md) for adversarial
 coverage and platform evidence,
 [docs/installation.md](docs/installation.md) for installation and recovery,
 [docs/operations.md](docs/operations.md) for server administration,

@@ -16,6 +16,7 @@ export interface VaultKeySettings {
 export interface LearningLoopSettings {
   readonly schema: 1;
   readonly serverPasswordSecretId: string;
+  readonly focusMode: boolean;
   readonly server?: ServerSettings;
   readonly vault?: VaultKeySettings;
 }
@@ -94,6 +95,16 @@ export class SettingsRepository {
   async hasServerPassword(): Promise<boolean> {
     return (await this.serverPassword()) !== undefined;
   }
+
+  async setFocusMode(enabled: boolean): Promise<LearningLoopSettings> {
+    const current = await this.load();
+    const next: LearningLoopSettings = {
+      ...current,
+      focusMode: enabled,
+    };
+    await this.save(next);
+    return next;
+  }
 }
 
 export function strongClientPassword(password: string): boolean {
@@ -128,6 +139,7 @@ function parseSettings(value: unknown): LearningLoopSettings {
   return {
     schema: 1,
     serverPasswordSecretId: secret,
+    focusMode: typeof value.focusMode === "boolean" ? value.focusMode : true,
     ...(server === undefined ? {} : { server }),
     ...(vault === undefined ? {} : { vault }),
   };
@@ -173,6 +185,7 @@ function emptySettings(): LearningLoopSettings {
   return {
     schema: 1,
     serverPasswordSecretId: randomSecretId(),
+    focusMode: true,
   };
 }
 
@@ -209,5 +222,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function isCurrentSettings(value: unknown): boolean {
   return isObject(value)
     && value.schema === 1
-    && typeof value.serverPasswordSecretId === "string";
+    && typeof value.serverPasswordSecretId === "string"
+    && typeof value.focusMode === "boolean";
 }

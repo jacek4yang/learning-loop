@@ -11,7 +11,11 @@ class MemoryLearningApp {
   readonly files = new Map<string, TFile | TFolder>();
   readonly contents = new Map<string, string>();
   readonly frontmatters = new Map<string, Record<string, unknown>>();
+  readonly cachedFrontmatters = new Map<string, Record<string, unknown>>();
+  metadataChanged: ((file: TFile) => void) | undefined;
   opened: string | undefined;
+
+  constructor(private readonly delayedMetadata = false) {}
 
   readonly vault = {
     getAbstractFileByPath: (path: string): TFile | TFolder | null =>
@@ -64,6 +68,11 @@ class MemoryLearningApp {
       };
       update(properties);
       this.frontmatters.set(file.path, properties);
+      if (this.delayedMetadata) {
+        this.metadataChanged?.(file);
+      } else {
+        this.cachedFrontmatters.set(file.path, { ...properties });
+      }
       return Promise.resolve();
     },
   };
@@ -72,7 +81,9 @@ class MemoryLearningApp {
     getFileCache: (file: TFile): {
       readonly frontmatter: Record<string, unknown>;
     } | null => {
-      const frontmatter = this.frontmatters.get(file.path);
+      const frontmatter = this.delayedMetadata
+        ? this.cachedFrontmatters.get(file.path)
+        : this.frontmatters.get(file.path);
       return frontmatter === undefined ? null : { frontmatter };
     },
   };
@@ -90,6 +101,14 @@ class MemoryLearningApp {
 
   asApp(): App {
     return this as unknown as App;
+  }
+
+  publishMetadata(file: TFile): void {
+    const frontmatter = this.frontmatters.get(file.path);
+    if (frontmatter !== undefined) {
+      this.cachedFrontmatters.set(file.path, { ...frontmatter });
+    }
+    this.metadataChanged?.(file);
   }
 }
 
@@ -132,6 +151,74 @@ describe("LearningService Markdown-first integration", () => {
     expect(app.contents.get(thinking)).toBe("{\"manual\":true}\n");
   });
 
+  it("keeps new note properties while Obsidian metadata cache catches up", async () => {
+    const app = new MemoryLearningApp(true);
+    const service = new LearningService(
+      app.asApp(),
+      () => new Date("2026-07-28T01:02:03Z"),
+    );
+    app.metadataChanged = (file) => {
+      service.metadataChanged(file);
+    };
+
+    const result = await service.createTopic(
+      "Cache race",
+      "# First section\n- [ ] First task",
+    );
+
+    expect(result.nodes).toHaveLength(2);
+    expect(app.frontmatters.get(result.topic.path)).toMatchObject({
+      ll_type: "topic",
+      ll_status: "active",
+    });
+    for (const file of [result.topic, ...result.nodes]) {
+      app.publishMetadata(file);
+    }
+    expect(app.cachedFrontmatters.get(result.topic.path)).toMatchObject({
+      ll_type: "topic",
+      ll_status: "active",
+    });
+  });
+
+  it("builds a visual tree and a safe copyable AI learning context", async () => {
+    const app = new MemoryLearningApp();
+    const service = new LearningService(app.asApp());
+    const result = await service.createTopic(
+      "Reliable API",
+      "## Protocol\n- [ ] Requests\n- [x] Responses",
+    );
+
+    const tree = service.treeSnapshot();
+    expect(tree).toHaveLength(1);
+    expect(tree[0]).toMatchObject({
+      title: "Reliable API",
+      total: 3,
+      mastered: 1,
+    });
+    expect(tree[0]?.roots[0]?.children.map((node) => node.title)).toEqual([
+      "Requests",
+      "Responses",
+    ]);
+
+    const context = await service.buildAiContext(result.nodes[0]);
+    expect(context).toContain("# Learning Loop AI 学习上下文：Reliable API");
+    expect(context).toContain("## 知识树");
+    expect(context).toContain("Protocol ← 当前");
+    expect(context).toContain("## 希望 AI 如何协助");
+
+    const current = result.nodes[0];
+    if (current === undefined) {
+      throw new Error("missing current node");
+    }
+    app.contents.set(
+      current.path,
+      "## 当前理解\n\napi_key = abcdefghijklmnopqrstuvwxyz\n",
+    );
+    expect(await service.buildAiContext(current)).toContain(
+      "本节内容已自动省略",
+    );
+  });
+
   it("stores deterministic review metadata in card Properties", async () => {
     const app = new MemoryLearningApp();
     const service = new LearningService(
@@ -157,6 +244,23 @@ describe("LearningService Markdown-first integration", () => {
       ll_repetitions: 1,
       ll_last_grade: "掌握",
     });
+  });
+
+  it("hides internal properties on the generated daily dashboard", async () => {
+    const app = new MemoryLearningApp();
+    const service = new LearningService(
+      app.asApp(),
+      () => new Date("2026-07-29T05:35:03Z"),
+    );
+
+    const dashboard = await service.openTodayDashboard();
+
+    expect(app.frontmatters.get(dashboard.path)).toMatchObject({
+      cssclasses: ["learning-loop-note"],
+      ll_type: "record",
+      ll_record_kind: "daily",
+    });
+    expect(app.opened).toBe(dashboard.path);
   });
 
   it("hides implementation metadata on existing notes without removing user styles", async () => {

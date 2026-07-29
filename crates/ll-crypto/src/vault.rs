@@ -1,10 +1,9 @@
-use std::time::Instant;
-
 use chacha20poly1305::XChaCha20Poly1305;
 use chacha20poly1305::aead::array::Array;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use minicbor::{Decoder, Encoder};
 use subtle::ConstantTimeEq;
+use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::keys::{SecretKey, select_calibrated_policy};

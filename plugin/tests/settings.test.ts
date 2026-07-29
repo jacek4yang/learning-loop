@@ -30,6 +30,7 @@ describe("settings persistence", () => {
       fingerprint: FINGERPRINT,
       deviceName: "My laptop",
     });
+    expect(saved.focusMode).toBe(true);
     expect(await repository.serverPassword()).toBe("server-access-passphrase");
     expect(fake.saved()).toEqual(saved);
 
@@ -70,6 +71,17 @@ describe("settings persistence", () => {
     expect(result).toEqual(complete);
     expect(await repository.serverPassword()).toBe("working-server-password");
     expect(fake.saved()).toEqual(complete);
+  });
+
+  it("persists the focused Learning Loop workspace preference", async () => {
+    const fake = fakePlugin();
+    const repository = new SettingsRepository(fake.plugin);
+
+    expect((await repository.load()).focusMode).toBe(true);
+    await repository.setFocusMode(false);
+
+    const afterRestart = new SettingsRepository(fake.plugin);
+    expect((await afterRestart.load()).focusMode).toBe(false);
   });
 });
 

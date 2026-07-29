@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Learning Loop 完整学习工作流手册</title>
+  <style>
+    :root {
+      --bg: #f6f5fb;
+      --surface: #ffffff;
+      --surface-2: #f1eefb;
+      --text: #24212f;
+      --muted: #6f687d;
+      --line: #e2ddec;
+      --accent: #7651e6;
+      --accent-2: #9b6cff;
+      --accent-soft: #eee8ff;
+      --green: #16865b;
+      --green-soft: #e3f7ee;
+      --orange: #b65e16;
+      --orange-soft: #fff0df;
+      --red: #c43f55;
+      --red-soft: #ffe9ed;
+      --blue: #2878c7;
+      --blue-soft: #e5f1ff;
+      --shadow: 0 18px 50px rgba(56, 39, 96, .10);
+      --radius: 20px;
+      --sidebar: 286px;
+    }
+    html[data-theme="dark"] {
+      --bg: #15131b;
+      --surface: #201d28;
+      --surface-2: #292532;
+      --text: #f4f0fb;
+      --muted: #b4aebf;
+      --line: #3b3547;
+      --accent: #a783ff;
+      --accent-2: #c2a7ff;
+      --accent-soft: #31264d;
+      --green: #57d69f;
+      --green-soft: #18392d;
+      --orange: #f3ae6e;
+      --orange-soft: #432c1b;
+      --red: #ff8192;
+      --red-soft: #44222a;
+      --blue: #79b9ff;
+      --blue-soft: #1c3148;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .28);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background:
+        radial-gradient(circle at 90% 0, color-mix(in srgb, var(--accent) 12%, transparent), transparent 28rem),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.75 Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      margin: 0;
+    }
+    a { color: var(--accent); }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .progress {
+      background: var(--accent);
+      height: 4px;
+      left: 0;
+      position: fixed;
+      top: 0;
+      transition: width .12s linear;
+      width: 0;
+      z-index: 50;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    aside {
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      border-right: 1px solid var(--line);
+      height: 100vh;
+      left: 0;
+      overflow: auto;
+      padding: 26px 20px;
+      position: sticky;
+      top: 0;
+    }
+    .brand {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      align-items: center;
+      background: linear-gradient(145deg, var(--accent), var(--accent-2));
+      border-radius: 15px;
+      box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 28%, transparent);
+      color: white;
+      display: flex;
+      font-size: 24px;
+      height: 48px;
+      justify-content: center;
+      width: 48px;
+    }
+    .brand strong { display: block; font-size: 18px; }
+    .brand small { color: var(--muted); }
+    nav { display: grid; gap: 3px; }
+    nav a {
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 7px 10px;
+      text-decoration: none;
+    }
+    nav a:hover, nav a.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .side-actions {
+      border-top: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+      margin-top: 22px;
+      padding-top: 18px;
+    }
+    .side-actions button, .button {
+      align-items: center;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--text);
+      display: inline-flex;
+      gap: 7px;
+      justify-content: center;
+      padding: 9px 13px;
+      text-decoration: none;
+    }
+    .side-actions button:hover, .button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    main {
+      margin: 0 auto;
+      max-width: 1160px;
+      padding: 46px clamp(24px, 5vw, 76px) 100px;
+      width: 100%;
+    }
+    .hero {
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      padding: clamp(30px, 6vw, 68px);
+      position: relative;
+    }
+    .hero::after {
+      background: linear-gradient(145deg, var(--accent), var(--accent-2));
+      border-radius: 44% 56% 65% 35%;
+      content: "";
+      filter: blur(1px);
+      height: 230px;
+      opacity: .12;
+      position: absolute;
+      right: -55px;
+      top: -75px;
+      transform: rotate(22deg);
+      width: 230px;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: clamp(34px, 6vw, 62px);
+      letter-spacing: -.045em;
+      line-height: 1.12;
+      margin: 12px 0 18px;
+      max-width: 840px;
+    }
+    .hero > p {
+      color: var(--muted);
+      font-size: clamp(17px, 2vw, 21px);
+      max-width: 800px;
+    }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+    .tag {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 5px 11px;
+    }
+    section { scroll-margin-top: 22px; margin-top: 78px; }
+    h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      letter-spacing: -.025em;
+      line-height: 1.25;
+      margin: 0 0 14px;
+    }
+    h3 { font-size: 21px; line-height: 1.35; margin: 0 0 10px; }
+    h4 { font-size: 17px; margin-bottom: 6px; }
+    .lead { color: var(--muted); font-size: 18px; margin: 0 0 28px; max-width: 850px; }
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 28px rgba(56, 39, 96, .05);
+      padding: 24px;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card-icon {
+      align-items: center;
+      background: var(--accent-soft);
+      border-radius: 13px;
+      color: var(--accent);
+      display: inline-flex;
+      font-size: 22px;
+      height: 46px;
+      justify-content: center;
+      margin-bottom: 14px;
+      width: 46px;
+    }
+    .callout {
+      background: var(--blue-soft);
+      border-left: 5px solid var(--blue);
+      border-radius: 12px;
+      margin: 22px 0;
+      padding: 16px 18px;
+    }
+    .callout.warning { background: var(--orange-soft); border-color: var(--orange); }
+    .callout.danger { background: var(--red-soft); border-color: var(--red); }
+    .callout.success { background: var(--green-soft); border-color: var(--green); }
+    .callout strong { display: block; margin-bottom: 3px; }
+    .workflow {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(7, minmax(98px, 1fr));
+      margin: 28px 0;
+    }
+    .flow-step {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      min-height: 132px;
+      padding: 16px 12px;
+      position: relative;
+      text-align: center;
+    }
+    .flow-step:not(:last-child)::after {
+      color: var(--accent);
+      content: "→";
+      font-size: 24px;
+      position: absolute;
+      right: -21px;
+      top: 47px;
+      z-index: 2;
+    }
+    .flow-step b {
+      align-items: center;
+      background: var(--accent);
+      border-radius: 999px;
+      color: white;
+      display: inline-flex;
+      height: 30px;
+      justify-content: center;
+      margin-bottom: 10px;
+      width: 30px;
+    }
+    .flow-step strong { display: block; }
+    .flow-step small { color: var(--muted); }
+    .mock-window {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .mock-titlebar {
+      align-items: center;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 7px;
+      padding: 12px 15px;
+    }
+    .mock-dot { background: var(--line); border-radius: 50%; height: 9px; width: 9px; }
+    .mock-body { display: grid; grid-template-columns: 220px 1fr; min-height: 330px; }
+    .mock-side { border-right: 1px solid var(--line); padding: 18px; }
+    .mock-side h4 { margin-top: 0; }
+    .tool-grid { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }
+    .tool {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 10px 4px;
+      text-align: center;
+    }
+    .tool.primary { background: var(--accent); color: white; }
+    .mock-content { padding: 26px; }
+    .tree-topic {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 15px;
+    }
+    .tree-line { align-items: center; display: flex; gap: 9px; margin: 10px 0; }
+    .tree-line.child { margin-left: 28px; }
+    .tree-node { background: var(--orange); border-radius: 50%; height: 10px; width: 10px; }
+    .tree-line.current { background: var(--accent-soft); border-radius: 9px; padding: 7px; }
+    .tree-line.current .tree-node { background: var(--accent); }
+    .tree-line.done .tree-node { background: var(--green); }
+    .checklist {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 22px;
+    }
+    .check {
+      align-items: flex-start;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      gap: 12px;
+      padding: 15px 0;
+    }
+    .check:last-child { border-bottom: 0; }
+    .check input { accent-color: var(--accent); height: 19px; margin-top: 4px; width: 19px; }
+    .check label { flex: 1; }
+    .check label strong { display: block; }
+    .check label small { color: var(--muted); }
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 20px 0;
+      overflow: hidden;
+      width: 100%;
+    }
+    th, td { border-bottom: 1px solid var(--line); padding: 13px 14px; text-align: left; vertical-align: top; }
+    th { background: var(--surface-2); color: var(--muted); font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow-x: auto; }
+    .table-wrap table { margin: 0; min-width: 720px; }
+    code {
+      background: var(--surface-2);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: .9em;
+      padding: 2px 6px;
+    }
+    pre {
+      background: #17151f;
+      border: 1px solid #393444;
+      border-radius: 14px;
+      color: #eee9f7;
+      line-height: 1.6;
+      overflow: auto;
+      padding: 20px;
+      position: relative;
+    }
+    pre code { background: none; color: inherit; padding: 0; }
+    .copy {
+      background: #302b3a;
+      border: 1px solid #484154;
+      border-radius: 8px;
+      color: #ded6eb;
+      font-size: 12px;
+      padding: 5px 9px;
+      position: absolute;
+      right: 10px;
+      top: 10px;
+    }
+    .syntax {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(170px, .7fr) minmax(260px, 1.3fr);
+    }
+    .syntax > div {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .syntax h4 { color: var(--accent); margin-top: 0; }
+    .sequence {
+      counter-reset: strict-step;
+      display: grid;
+      gap: 16px;
+    }
+    .sequence article {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px 22px 22px 76px;
+      position: relative;
+    }
+    .sequence article::before {
+      align-items: center;
+      background: var(--accent);
+      border-radius: 14px;
+      color: white;
+      content: counter(strict-step);
+      counter-increment: strict-step;
+      display: flex;
+      font-size: 20px;
+      font-weight: 800;
+      height: 42px;
+      justify-content: center;
+      left: 20px;
+      position: absolute;
+      top: 21px;
+      width: 42px;
+    }
+    .sequence article p { color: var(--muted); margin-bottom: 0; }
+    .dod {
+      background: var(--green-soft);
+      border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+      border-radius: 12px;
+      color: var(--green);
+      font-weight: 700;
+      margin-top: 12px;
+      padding: 9px 12px;
+    }
+    details {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin: 10px 0;
+      padding: 0 18px;
+    }
+    summary { cursor: pointer; font-weight: 700; padding: 15px 0; }
+    details > div { border-top: 1px solid var(--line); padding: 6px 0 18px; }
+    .footer {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      margin-top: 80px;
+      padding-top: 24px;
+      text-align: center;
+    }
+    .mobile-nav { display: none; }
+    @media (max-width: 1040px) {
+      .workflow { grid-template-columns: repeat(4, 1fr); }
+      .flow-step:not(:last-child)::after { display: none; }
+      .grid.three { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 780px) {
+      .layout { display: block; }
+      aside { display: none; }
+      main { padding: 74px 18px 70px; }
+      .mobile-nav {
+        align-items: center;
+        backdrop-filter: blur(18px);
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        left: 0;
+        padding: 10px 14px;
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 20;
+      }
+      .mobile-nav a { color: var(--text); font-weight: 800; text-decoration: none; }
+      .mobile-nav button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; color: var(--text); padding: 6px 9px; }
+      .grid.two, .grid.three, .syntax { grid-template-columns: 1fr; }
+      .workflow { grid-template-columns: repeat(2, 1fr); }
+      .mock-body { grid-template-columns: 1fr; }
+      .mock-side { border-bottom: 1px solid var(--line); border-right: 0; }
+      section { margin-top: 58px; }
+    }
+    @media print {
+      aside, .mobile-nav, .progress, .copy, .side-actions { display: none !important; }
+      .layout { display: block; }
+      main { max-width: none; padding: 0; }
+      body { background: white; color: #111; font-size: 11pt; }
+      .hero, .card, .checklist, .sequence article, details { break-inside: avoid; box-shadow: none; }
+      section { break-before: auto; margin-top: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="mobile-nav">
+    <a href="#top">Learning Loop</a>
+    <button type="button" data-theme-toggle>切换主题</button>
+  </div>
+  <div class="layout">
+    <aside>
+      <div class="brand">
+        <div class="brand-icon">⌁</div>
+        <div><strong>Learning Loop</strong><small>完整学习手册 · v1.1</small></div>
+      </div>
+      <nav id="nav">
+        <a href="#promise">这份手册保证什么</a>
+        <a href="#start">第一次使用</a>
+        <a href="#interface">界面与按钮</a>
+        <a href="#loop">严格学习闭环</a>
+        <a href="#markdown">Markdown 完整语法</a>
+        <a href="#english">英文学习</a>
+        <a href="#programming">编程学习</a>
+        <a href="#paper">论文学习</a>
+        <a href="#cross">跨领域交互</a>
+        <a href="#ai">与 AI 协作</a>
+        <a href="#review">复习与完成标准</a>
+        <a href="#sync">同步、安全与恢复</a>
+        <a href="#rhythm">每日与每周节奏</a>
+        <a href="#troubleshooting">问题排查</a>
+      </nav>
+      <div class="side-actions">
+        <button type="button" data-theme-toggle>◐ 切换明暗主题</button>
+        <button type="button" onclick="window.print()">⎙ 打印 / 导出 PDF</button>
+        <button type="button" id="resetChecks">↺ 清空勾选进度</button>
+      </div>
+    </aside>
+
+    <main id="top">
+      <header class="hero">
+        <span class="eyebrow">Learning Loop · 可执行学习系统</span>
+        <h1>从一个问题，到真正理解、验证并长期记住</h1>
+        <p>这不是功能列表，而是一份可以逐步执行的工作流。按照按钮顺序和完成标准操作，你可以把英文、编程、论文与实际技术工作连接成同一棵可靠的知识树。</p>
+        <div class="hero-tags">
+          <span class="tag">离线可用</span>
+          <span class="tag">端到端加密同步</span>
+          <span class="tag">可视化知识树</span>
+          <span class="tag">AI 上下文一键复制</span>
+          <span class="tag">英文 · 编程 · 论文</span>
+        </div>
+      </header>
+
+      <section id="promise">
+        <span class="eyebrow">验收承诺</span>
+        <h2>这份手册保证什么</h2>
+        <p class="lead">它保证工作流完整、操作可执行、结果可检查；不以“多记笔记”为目标，而以“能解释、能验证、能迁移”为目标。</p>
+        <div class="grid three">
+          <article class="card"><div class="card-icon">→</div><h3>每步都有下一步</h3><p>每个阶段都写明输入、按钮、Markdown 写法、完成标准和失败处理，不留下“接下来自己想”的断点。</p></article>
+          <article class="card"><div class="card-icon">✓</div><h3>每个结论可核实</h3><p>事实必须有来源，编程结论必须有实验或测试，论文结论必须区分作者断言与自己的判断。</p></article>
+          <article class="card"><div class="card-icon">↻</div><h3>每个知识可回顾</h3><p>真正关键的内容会转成复习卡；“不会、模糊、掌握”决定下次出现时间，而不是依靠重复阅读。</p></article>
+        </div>
+        <div class="callout warning"><strong>诚实边界</strong>没有任何文档能保证一个人不练习就必然学会。这里的严格保证是：工具链与方法闭环可执行，并且每一步都有客观完成标准。你的练习、反馈和修正仍然不可替代。</div>
+      </section>
+
+      <section id="start">
+        <span class="eyebrow">首次启动</span>
+        <h2>第一次使用，只做这 6 件事</h2>
+        <p class="lead">服务器配置只需完成一次。客户端加密密码不会保存，因此每次重启都要输入，这正是数据安全边界。</p>
+        <div class="sequence">
+          <article><h3>打开 Obsidian，输入客户端加密密码</h3><p>启动窗口会自动出现。它用于在本机内存中解锁数据，关闭 Obsidian 后立即失效。</p><div class="dod">完成标准：右侧显示“同步完成”，而不是“已锁定”。</div></article>
+          <article><h3>若是新设备，点击“开始配置”</h3><p>填写服务器主机名、TCP 端口、SHA-256 指纹、服务器访问密码和设备名称。先点“测试连接”，成功后再“保存并连接”。</p><div class="dod">完成标准：测试提示服务器可达、指纹和访问密码均通过验证。</div></article>
+          <article><h3>点击“初始化学习空间”</h3><p>系统只创建缺失的文件夹与模板，不覆盖已有笔记。</p><div class="dod">完成标准：出现 10-Topics、20-Nodes、60-Cards、70-Maps 等目录。</div></article>
+          <article><h3>打开“新建”→“学习主题”</h3><p>主题名称写最终目标；已有计划时把 Markdown 大纲直接粘贴进去。</p><div class="dod">完成标准：知识树出现主题和节点，第一条未完成任务被标为“当前”。</div></article>
+          <article><h3>点击“继续当前节点”</h3><p>只处理当前一个问题。不要同时在多个节点中无序添加材料。</p><div class="dod">完成标准：当前节点中至少填写“当前理解”和“待探索”。</div></article>
+          <article><h3>点击“立即同步”</h3><p>正常情况下保存后会自动同步；第一次仍建议手动确认一次。</p><div class="dod">完成标准：状态回到“同步完成”，没有待处理提示。</div></article>
+        </div>
+      </section>
+
+      <section id="interface">
+        <span class="eyebrow">专注界面</span>
+        <h2>所有按钮只服务学习闭环</h2>
+        <p class="lead">专注模式隐藏 Obsidian 官方 Sync、无关左侧工具和无关状态栏。需要恢复时，在插件设置或命令面板执行“切换 Learning Loop 专注模式”。</p>
+        <div class="mock-window" role="img" aria-label="Learning Loop 工作台与知识树界面示意">
+          <div class="mock-titlebar"><span class="mock-dot"></span><span class="mock-dot"></span><span class="mock-dot"></span></div>
+          <div class="mock-body">
+            <div class="mock-side">
+              <h4>学习工作台</h4>
+              <div class="tool-grid">
+                <div class="tool">⌕<br>搜索</div><div class="tool">⌁<br>知识树</div><div class="tool">▦<br>白板</div>
+                <div class="tool">□<br>今日</div><div class="tool primary">＋<br>新建</div><div class="tool">⧉<br>复制给 AI</div>
+              </div>
+              <h4>下一步</h4>
+              <div class="tool" style="text-align:left;margin-top:8px">▶ 继续当前节点</div>
+              <div class="tool" style="text-align:left;margin-top:8px">? 快速记录问题</div>
+            </div>
+            <div class="mock-content">
+              <span class="eyebrow">可视化学习路径</span><h3>知识学习树</h3>
+              <div class="tree-topic">
+                <strong>可靠的 Web API</strong>
+                <div class="tree-line done"><span class="tree-node"></span>理解请求与响应 · 已掌握</div>
+                <div class="tree-line child current"><span class="tree-node"></span>验证错误处理 · 当前</div>
+                <div class="tree-line child"><span class="tree-node"></span>设计重试策略 · 待核实</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:24px">
+          <table>
+            <thead><tr><th>按钮</th><th>什么时候点</th><th>结果</th><th>不要这样用</th></tr></thead>
+            <tbody>
+              <tr><td>搜索</td><td>已经知道关键词或笔记名称</td><td>只在 Learning Loop 内容中选择</td><td>不要为同一概念重复新建</td></tr>
+              <tr><td>知识树</td><td>选择下一节点、检查进度</td><td>显示当前、核实、确信度和掌握状态</td><td>不要把“创建过”当成“掌握”</td></tr>
+              <tr><td>白板</td><td>需要看父子关系或跨节点联系</td><td>打开当前主题的自动结构图</td><td>不要手改自动图；思考图可自由编辑</td></tr>
+              <tr><td>今日</td><td>每天开始或结束学习</td><td>当前节点、到期复习和快速问题</td><td>不要另建无结构的日记替代节点</td></tr>
+              <tr><td>新建</td><td>确实出现新的主题、节点、卡片或资料</td><td>生成固定模板并进入同步</td><td>不要一个节点塞入多个独立问题</td></tr>
+              <tr><td>复制给 AI</td><td>需要提问、反驳、检查理解或规划实验</td><td>复制安全过滤后的结构化上下文</td><td>发送前仍要检查是否包含隐私</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="loop">
+        <span class="eyebrow">核心闭环</span>
+        <h2>永远按这个顺序学习</h2>
+        <div class="workflow">
+          <div class="flow-step"><b>1</b><strong>提出问题</strong><small>明确想解释或完成什么</small></div>
+          <div class="flow-step"><b>2</b><strong>拆分节点</strong><small>每个节点只解决一件事</small></div>
+          <div class="flow-step"><b>3</b><strong>先写理解</strong><small>暴露已有模型与盲点</small></div>
+          <div class="flow-step"><b>4</b><strong>收集证据</strong><small>来源、代码、实验、数据</small></div>
+          <div class="flow-step"><b>5</b><strong>验证与纠正</strong><small>区分事实、推断、假设</small></div>
+          <div class="flow-step"><b>6</b><strong>提炼复习</strong><small>转成问题与最小答案</small></div>
+          <div class="flow-step"><b>7</b><strong>迁移应用</strong><small>换场景解释或重新实现</small></div>
+        </div>
+        <div class="checklist" data-check-group="core-loop">
+          <div class="check"><input type="checkbox" id="c1"><label for="c1"><strong>问题足够具体</strong><small>能在一到两次学习会话内获得证据；否则继续拆分。</small></label></div>
+          <div class="check"><input type="checkbox" id="c2"><label for="c2"><strong>先写自己的当前理解</strong><small>查资料前写 3—8 句话，后面才能看见模型如何被纠正。</small></label></div>
+          <div class="check"><input type="checkbox" id="c3"><label for="c3"><strong>至少有一条可复查证据</strong><small>官方文档、论文页码、测试输出、抓包、数据或可重复实验。</small></label></div>
+          <div class="check"><input type="checkbox" id="c4"><label for="c4"><strong>写清边界和反例</strong><small>说明结论何时不成立，避免只记一个漂亮但脆弱的句子。</small></label></div>
+          <div class="check"><input type="checkbox" id="c5"><label for="c5"><strong>能够不看笔记复述</strong><small>如果只能“看懂”，尚未完成；尝试解释、手写或重做。</small></label></div>
+          <div class="check"><input type="checkbox" id="c6"><label for="c6"><strong>关键知识已转成复习卡</strong><small>一张卡只问一件事，答案可明确判定对错。</small></label></div>
+          <div class="check"><input type="checkbox" id="c7"><label for="c7"><strong>状态已更新并同步</strong><small>核实、确信度、掌握状态与服务器同步状态都准确。</small></label></div>
+        </div>
+      </section>
+
+      <section id="markdown">
+        <span class="eyebrow">表达工具</span>
+        <h2>Markdown 语法：什么情况下用什么</h2>
+        <p class="lead">Markdown 的目的不是排版炫技，而是让知识结构可以搜索、链接、生成树、交给 AI，并在任何设备上长期读取。</p>
+        <div class="syntax">
+          <div><h4>标题</h4><p><code>#</code> 是整篇标题；<code>##</code> 是固定学习章节；<code>###</code> 用于章节内的一个案例或子论点。不要跳级。</p></div>
+          <pre><code># 主题标题
+## 当前理解
+### 一个具体例子</code></pre>
+          <div><h4>普通段落与强调</h4><p>连续论证用段落；<code>**粗体**</code> 只标结论或关键词；<code>*斜体*</code> 标术语、变量或轻微强调。</p></div>
+          <pre><code>HTTP 是一种应用层协议。
+
+**关键结论：** 请求重试必须考虑幂等性。
+*idempotent* 表示重复执行结果不继续变化。</code></pre>
+          <div><h4>无序列表</h4><p>并列事实、选项、特征，且顺序不影响含义时使用。不要用它替代完整论证。</p></div>
+          <pre><code>- 优点：容易缓存
+- 限制：可能出现陈旧数据
+- 证据：见官方缓存规范</code></pre>
+          <div><h4>有序列表</h4><p>算法、操作手册、实验和故障恢复步骤必须用有序列表，因为顺序会影响结果。</p></div>
+          <pre><code>1. 保存当前配置。
+2. 运行测试。
+3. 检查退出码。
+4. 失败时执行回滚。</code></pre>
+          <div><h4>任务列表</h4><p>只表示可验证的动作。主题大纲中的任务会转换成学习节点；完成后用 <code>[x]</code>。</p></div>
+          <pre><code>- [ ] 写出当前理解
+- [ ] 完成最小实验
+- [x] 找到官方定义</code></pre>
+          <div><h4>Obsidian 内部链接</h4><p>概念之间有可解释关系时使用 <code>[[笔记]]</code>；显示名不同用竖线。不要为普通重复词到处加链接。</p></div>
+          <pre><code>这依赖 [[20-Nodes/幂等性|幂等性]]。
+来源于 [[30-Sources/Papers/原论文]]。</code></pre>
+          <div><h4>外部链接</h4><p>引用网页、官方文档、仓库或数据集时使用。链接文字写清内容，不要只写“这里”。</p></div>
+          <pre><code>[Rust 所有权官方文档](https://doc.rust-lang.org/book/)</code></pre>
+          <div><h4>引用与 Callout</h4><p><code>&gt;</code> 放原文短摘；Callout 放警告、结论、假设、待验证项。原文和自己的判断必须分开。</p></div>
+          <pre><code>&gt; 原文短摘，后面标来源。
+
+&gt; [!warning] 边界
+&gt; 这个结论只在单进程条件下成立。
+
+&gt; [!question] 待验证
+&gt; 网络分区时是否仍然成立？</code></pre>
+          <div><h4>行内代码与代码块</h4><p>命令、函数、变量用行内代码；可运行或可讨论的多行程序必须注明语言，便于高亮与 AI 理解。</p></div>
+          <pre><code>调用 `syncNow()` 后检查状态。
+
+```ts
+const result = await client.syncNow();
+expect(result.pending).toBe(0);
+```</code></pre>
+          <div><h4>表格</h4><p>三项以上对象需要按相同维度对比时使用。长篇解释不要硬塞进表格。</p></div>
+          <pre><code>| 方案 | 一致性 | 延迟 | 适用场景 |
+|---|---:|---:|---|
+| A | 强 | 高 | 账务 |
+| B | 最终 | 低 | 缓存 |</code></pre>
+          <div><h4>图片与嵌入</h4><p>界面、图表、实验结果或原文页截图使用；正文必须解释图片说明了什么。附件放在 <code>99-Attachments</code>。</p></div>
+          <pre><code>![[99-Attachments/retry-timeline.png]]
+图 1：第三次重试发生在服务恢复之前，因此仍然失败。</code></pre>
+          <div><h4>数学公式</h4><p>概率、复杂度、损失函数或论文公式使用 LaTeX。符号第一次出现必须解释。</p></div>
+          <pre><code>行内：$O(n \log n)$
+
+$$
+P(A \mid B)=\frac{P(B \mid A)P(A)}{P(B)}
+$$</code></pre>
+          <div><h4>脚注</h4><p>补充来源版本、翻译说明或不打断主论证的细节。关键证据不能只藏在脚注。</p></div>
+          <pre><code>该行为在 1.2 版本后改变。[^version]
+
+[^version]: 参见官方迁移说明，访问于 2026-07-29。</code></pre>
+          <div><h4>标签</h4><p>只用于少量横向状态或领域，如 <code>#待核实</code>、<code>#英语</code>。主题结构由知识树负责，不要制造数百个标签。</p></div>
+          <pre><code>#待核实 #分布式系统</code></pre>
+          <div><h4>笔记属性</h4><p>Learning Loop 会维护内部属性。普通用户不要编辑 <code>ll_*</code>；你可以添加自己的 <code>source</code>、<code>course</code> 等属性。</p></div>
+          <pre><code>---
+source: "课程第 4 章"
+course: "Distributed Systems"
+---</code></pre>
+          <div><h4>删除线与高亮</h4><p>删除线保留已经被推翻的短结论；高亮只标本次复习必须看见的词。重要修正仍应写进“修正记录”。</p></div>
+          <pre><code>~~重试一定是安全的。~~
+重试是否安全取决于 ==操作是否幂等==。</code></pre>
+          <div><h4>嵌套列表</h4><p>一个父项确实拥有子项时缩进两个空格；超过三层就应该拆成知识节点，否则结构难以维护。</p></div>
+          <pre><code>- 一致性
+  - 强一致性
+  - 最终一致性
+- 可用性
+  1. 正常路径
+  2. 降级路径</code></pre>
+          <div><h4>链接到标题或块</h4><p>需要精确引用另一笔记的某一节时使用标题链接；需要引用一句稳定结论时为该段加块 ID。</p></div>
+          <pre><code>[[可靠性#重试边界]]
+这个结论只适用于幂等操作。 ^retry-boundary
+[[可靠性#^retry-boundary]]</code></pre>
+          <div><h4>嵌入笔记、标题或块</h4><p>需要在当前笔记中实时展示另一处内容时，在内部链接前加 <code>!</code>。不要大量嵌入整篇长笔记。</p></div>
+          <pre><code>![[可靠性#重试边界]]
+![[可靠性#^retry-boundary]]</code></pre>
+          <div><h4>分隔线</h4><p>只在一篇长资料中分开两个明显阶段。Learning Loop 固定章节已经提供结构，普通节点里很少需要。</p></div>
+          <pre><code>上一阶段的结论。
+
+---
+
+下一阶段的材料。</code></pre>
+          <div><h4>转义字符</h4><p>想显示 Markdown 符号本身而不触发格式时，在符号前加反斜杠。</p></div>
+          <pre><code>\*这不是斜体\*
+\# 这不是标题
+\- 这不是列表</code></pre>
+          <div><h4>Mermaid 图</h4><p>适合写可以版本控制的流程图、状态机和时序图；需要自由拖放或大量笔记卡片时用 Learning Loop 白板。</p></div>
+          <pre><code>```mermaid
+flowchart LR
+  问题 --> 假设 --> 实验 --> 证据 --> 修正
+```</code></pre>
+          <div><h4>HTML 注释</h4><p>保存草稿提醒但不希望在阅读视图显示时使用。需要执行的事情必须用任务列表，不能藏在注释中。</p></div>
+          <pre><code>&lt;!-- 下次核对论文附录 B；这段不会在阅读视图显示。 --&gt;</code></pre>
+          <div><h4>原始 HTML</h4><p>仅在 Markdown 无法表达且确认跨设备兼容时使用。优先使用标准 Markdown，避免把笔记变成难维护的网页源码。</p></div>
+          <pre><code>&lt;kbd&gt;Ctrl&lt;/kbd&gt; + &lt;kbd&gt;P&lt;/kbd&gt;</code></pre>
+        </div>
+        <div class="callout"><strong>主题大纲的推荐写法</strong>二级标题表示阶段，任务表示可执行节点。大纲只规划路径，不在这里写正文。</div>
+        <pre><code>## 建立模型
+- [ ] 用自己的话解释核心概念
+- [ ] 列出两个反例
+## 获取证据
+- [ ] 阅读一份官方资料
+- [ ] 完成最小实验
+## 验证迁移
+- [ ] 在新场景重新实现
+- [ ] 创建三张复习卡</code></pre>
+      </section>
+
+      <section id="english">
+        <span class="eyebrow">专项路线 A</span>
+        <h2>英文学习：从语境到主动输出</h2>
+        <p class="lead">不要把单词变成孤立的中英对照。Learning Loop 把术语、原句、技术含义、挖空、造句与复习连成一个循环。</p>
+        <div class="sequence">
+          <article><h3>在真实材料中遇到词</h3><p>保留前后句和来源。优先记录影响理解或会反复使用的词，不追求把所有生词都收集。</p><div class="dod">完成标准：知道它在当前语境中承担什么含义。</div></article>
+          <article><h3>“新建”→“英文词汇”</h3><p>填写技术含义、多领域含义、原句、挖空、例句、自己的造句和易混词。</p><div class="dod">完成标准：不看翻译能根据上下文解释。</div></article>
+          <article><h3>连接概念节点</h3><p>如果术语对应一个技术概念，用内部链接连接到知识节点；词汇笔记解决语言，概念节点解决原理。</p><div class="dod">完成标准：英文术语与技术理解不是两份孤岛。</div></article>
+          <article><h3>创建两类复习卡</h3><p>一张考“语境→含义”，一张考“含义→自己造句”。不要把长词典释义放在答案中。</p><div class="dod">完成标准：答案能在 20 秒内说出并判定。</div></article>
+          <article><h3>输出与纠错</h3><p>用该词解释当前技术节点，或让 AI 只纠正表达与搭配；把纠正写进“易混词/修正记录”。</p><div class="dod">完成标准：一周后能在新句子中自然使用。</div></article>
+        </div>
+        <pre><code>## 单词或术语
+eventual consistency
+
+## 技术含义
+在没有新更新后，所有副本最终收敛到同一状态。
+
+## 原句
+The system provides eventual consistency under network partitions.
+
+## 原句挖空
+The system provides ______ ______ under network partitions.
+
+## 自己造句
+Our cache is eventually consistent, so a recent write may not be visible immediately.
+
+## 易混词
+- strong consistency：每次读取都满足更强的一致性保证
+- causal consistency：保留因果相关操作的顺序</code></pre>
+      </section>
+
+      <section id="programming">
+        <span class="eyebrow">专项路线 B</span>
+        <h2>编程学习：结论必须能运行</h2>
+        <p class="lead">编程节点的证据不是“文章说了”，而是可复现的代码、测试、日志、性能数据和失败边界。</p>
+        <div class="grid three">
+          <article class="card"><div class="card-icon">?</div><h3>问题节点</h3><p>示例：“为什么这个异步函数会重复提交？”而不是“学习 JavaScript”。</p></article>
+          <article class="card"><div class="card-icon">⌘</div><h3>最小实验</h3><p>删去无关依赖，只保留能产生现象的代码。记录版本、命令、输入和输出。</p></article>
+          <article class="card"><div class="card-icon">✓</div><h3>自动验证</h3><p>把理解变成测试；修复前测试失败，修复后测试通过，边界用额外用例固定。</p></article>
+        </div>
+        <div class="sequence" style="margin-top:20px">
+          <article><h3>先写预测</h3><p>在“当前理解”写程序会如何运行、为什么。没有预测，运行结果只会变成新的抄录。</p></article>
+          <article><h3>建立最小可复现示例</h3><p>代码块注明语言；命令、版本、环境放在“实验或证据”。敏感信息只写密码管理器引用。</p></article>
+          <article><h3>运行并保留输出</h3><p>输出用代码块；长日志只保留关键片段并附原始文件链接。失败也属于证据。</p></article>
+          <article><h3>解释差异</h3><p>比较预测与结果，把错误模型写入“修正记录”，不要覆盖掉旧理解。</p></article>
+          <article><h3>写测试与反例</h3><p>至少一个正常用例、一个边界用例、一个失败用例。性能结论必须包含测量方法。</p></article>
+          <article><h3>迁移到新问题</h3><p>关闭笔记后重新实现，或把相同原理用于另一语言/框架；这一步通过后才能标记掌握。</p></article>
+        </div>
+        <pre><code>## 当前理解
+我预测重复提交来自按钮事件和重试逻辑同时调用 `save()`。
+
+## 实验或证据
+环境：Node.js 24，Windows 11
+
+```powershell
+pnpm test -- duplicate-submit.test.ts
+```
+
+实际：修复前调用 2 次；增加幂等键后调用 1 次。
+
+## 边界条件
+- 网络响应丢失时，客户端仍可能重试。
+- 服务端必须持久化幂等键，进程内 Map 不足以保证。
+
+## 修正记录
+最初认为“禁用按钮”足够；实验说明它不能覆盖网络重试。</code></pre>
+      </section>
+
+      <section id="paper">
+        <span class="eyebrow">专项路线 C</span>
+        <h2>论文学习：区分作者说了什么与证据支持什么</h2>
+        <p class="lead">论文不是从摘要抄到笔记。先定位研究问题，再追踪方法、实验、结果、局限，最后提炼成可验证的知识节点。</p>
+        <div class="sequence">
+          <article><h3>“新建”→“论文笔记”</h3><p>填写题目、作者、年份、链接、版本。先读摘要、图表、结论，写下论文试图解决的问题。</p></article>
+          <article><h3>拆解方法与假设</h3><p>方法解决哪一部分问题？依赖什么前提？哪些变量被控制，哪些没有？</p></article>
+          <article><h3>逐图读取实验</h3><p>每张关键图写“横轴、纵轴、对照、结果、能否支持断言”。统计显著不等于实际重要。</p></article>
+          <article><h3>分离四种内容</h3><p>原文短摘、自己的翻译、自己的理解、自己的质疑分别进入对应章节，绝不混写。</p></article>
+          <article><h3>提炼知识节点</h3><p>把可迁移结论变成节点，把术语变成英文笔记，把可检验命题变成编程或数据实验。</p></article>
+          <article><h3>复现或反驳</h3><p>能运行代码就复现最小结果；不能运行时至少检查数据、实验设计和替代解释。</p></article>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>章节</th><th>必须回答的问题</th><th>完成证据</th></tr></thead>
+            <tbody>
+              <tr><td>研究问题</td><td>现有方法哪里不足？论文具体解决什么？</td><td>能用两句话说明输入、目标和约束</td></tr>
+              <tr><td>方法</td><td>核心机制是什么？依赖哪些假设？</td><td>能画出流程或伪代码</td></tr>
+              <tr><td>实验</td><td>对照是否公平？指标是否回答研究问题？</td><td>逐图解释变量和结果</td></tr>
+              <tr><td>结果</td><td>数据真正支持到哪一步？</td><td>区分数值结果和作者解释</td></tr>
+              <tr><td>局限</td><td>换数据、规模、硬件或分布后还成立吗？</td><td>至少一个反例或待验证边界</td></tr>
+              <tr><td>提炼</td><td>哪些知识能迁移到自己的项目？</td><td>节点、实验或复习卡已创建并链接</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="cross">
+        <span class="eyebrow">交互学习</span>
+        <h2>英文、编程、论文不是三套系统</h2>
+        <p class="lead">它们通过主题、节点、来源、实验、术语与复习卡互相转化，最终只形成一棵知识树。</p>
+        <div class="card">
+          <svg viewBox="0 0 900 330" width="100%" role="img" aria-label="跨领域学习关系图">
+            <defs>
+              <linearGradient id="g" x1="0" x2="1"><stop stop-color="#7651e6"/><stop offset="1" stop-color="#9b6cff"/></linearGradient>
+            </defs>
+            <path d="M150 165 C260 40 330 40 440 165 S640 290 750 165" fill="none" stroke="url(#g)" stroke-width="7" opacity=".35"/>
+            <path d="M150 165 C270 285 330 285 440 165 S640 40 750 165" fill="none" stroke="url(#g)" stroke-width="7" opacity=".35"/>
+            <g font-family="Microsoft YaHei, sans-serif" text-anchor="middle">
+              <circle cx="150" cy="165" r="76" fill="#e5f1ff" stroke="#2878c7" stroke-width="3"/><text x="150" y="157" font-size="25" fill="#245f98">论文 / 资料</text><text x="150" y="190" font-size="16" fill="#48779e">来源与命题</text>
+              <circle cx="440" cy="165" r="88" fill="#eee8ff" stroke="#7651e6" stroke-width="4"/><text x="440" y="155" font-size="27" fill="#5d3bbd">知识节点</text><text x="440" y="190" font-size="16" fill="#735e9c">理解 · 证据 · 边界</text>
+              <circle cx="750" cy="165" r="76" fill="#e3f7ee" stroke="#16865b" stroke-width="3"/><text x="750" y="157" font-size="25" fill="#126b49">代码 / 实验</text><text x="750" y="190" font-size="16" fill="#3f7d65">运行与验证</text>
+              <rect x="335" y="20" width="210" height="50" rx="25" fill="#fff0df" stroke="#b65e16"/><text x="440" y="52" font-size="19" fill="#8f4a13">英文术语与原句</text>
+              <rect x="335" y="260" width="210" height="50" rx="25" fill="#ffe9ed" stroke="#c43f55"/><text x="440" y="292" font-size="19" fill="#983345">复习卡与迁移</text>
+            </g>
+          </svg>
+        </div>
+        <div class="callout success"><strong>推荐交互链</strong>论文提出一个机制 → 提炼为知识节点 → 记录关键英文术语 → 编写最小实验 → 用结果修正节点 → 把定义、边界和诊断步骤做成复习卡 → 在新项目中迁移。</div>
+      </section>
+
+      <section id="ai">
+        <span class="eyebrow">AI 协作</span>
+        <h2>让 AI 看见你的目标、知识树与证据</h2>
+        <p class="lead">点击“复制给 AI”会生成结构化上下文：目标、进度、知识树、当前节点、相关节点摘要和建议的教学方式。疑似凭据内容会被自动省略。</p>
+        <div class="grid two">
+          <article class="card"><h3>适合交给 AI</h3><ul><li>用问题检查理解</li><li>寻找反例和边界</li><li>设计最小实验</li><li>比较两种解释</li><li>把长材料拆成节点</li><li>生成候选复习题，再由你核对</li></ul></article>
+          <article class="card"><h3>不要直接交给 AI</h3><ul><li>服务器密码、客户端密码</li><li>私钥、令牌、Cookie</li><li>未脱敏的客户或个人数据</li><li>无法核实却要直接写成结论的内容</li><li>让 AI 替你判断“已经掌握”</li></ul></article>
+        </div>
+        <pre><code>我会粘贴 Learning Loop 生成的上下文。请严格按以下顺序：
+
+1. 先用 3—5 个问题检查我的当前理解，不要立即讲答案。
+2. 把我的回答分为：事实、推断、假设、待验证。
+3. 指出一个最关键的错误模型或证据缺口。
+4. 设计一个 20 分钟内可完成的最小验证。
+5. 最后建议我更新哪个 Markdown 章节、创建哪个子节点或复习卡。
+
+如果资料不足，请明确说“不足”，不要补造来源。</code></pre>
+        <div class="callout danger"><strong>发送前最后检查</strong>自动检测只能识别“看起来像凭据”的文本，不能理解所有隐私。粘贴给任何 AI 前，仍要人工浏览一次上下文。</div>
+      </section>
+
+      <section id="review">
+        <span class="eyebrow">可靠完成</span>
+        <h2>什么时候才算“掌握”</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>状态</th><th>含义</th><th>允许的证据</th><th>下一步</th></tr></thead>
+            <tbody>
+              <tr><td>学习中</td><td>有初步模型，但证据或边界不足</td><td>当前理解、待探索问题</td><td>查资料或做实验</td></tr>
+              <tr><td>待核实</td><td>结论尚未经过独立来源/实验确认</td><td>猜想、AI 建议、单一二手来源</td><td>找官方/原始来源或可复现实验</td></tr>
+              <tr><td>已核实</td><td>证据支持结论，适用边界清楚</td><td>官方文档、论文、测试、数据</td><td>主动回忆与迁移</td></tr>
+              <tr><td>已掌握</td><td>不看笔记能解释、应用、识别反例</td><td>复述、重做、迁移任务、回顾表现</td><td>进入间隔复习</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="grid three" style="margin-top:20px">
+          <article class="card"><h3>不会</h3><p>想不起来或核心模型错误。看答案后写一句错误原因，尽快再次复习。</p></article>
+          <article class="card"><h3>模糊</h3><p>方向正确但遗漏条件、步骤或术语。补一个最小提示，不要把答案越写越长。</p></article>
+          <article class="card"><h3>掌握</h3><p>完整、准确、在合理时间内回答，并能解释边界。系统延长复习间隔。</p></article>
+        </div>
+      </section>
+
+      <section id="sync">
+        <span class="eyebrow">安全与连续性</span>
+        <h2>同步、密码与恢复</h2>
+        <div class="grid two">
+          <article class="card"><div class="card-icon">⌁</div><h3>服务器配置</h3><p>主机名、端口、指纹、设备名会持久化。服务器访问密码保存在 Obsidian SecretStorage，不写入 Markdown。</p></article>
+          <article class="card"><div class="card-icon">🔒</div><h3>客户端加密密码</h3><p>永不保存、永不上传，只在当前进程内存中派生解密密钥。丢失后无法恢复加密数据。</p></article>
+          <article class="card"><div class="card-icon">⇅</div><h3>自动同步</h3><p>文件变化会进入队列；解锁后自动同步，桌面端后台周期同步，失败的上传可以续传。</p></article>
+          <article class="card"><div class="card-icon">⚠</div><h3>冲突保护</h3><p>无法安全合并时保留冲突副本，不用“最后写入覆盖”静默丢失内容。解决后再删除冲突文件。</p></article>
+        </div>
+        <div class="callout warning"><strong>必须备份客户端密码</strong>用可信密码管理器保存；不要写入 Obsidian、截图、聊天或服务器日志。服务器访问密码与客户端加密密码必须不同。</div>
+      </section>
+
+      <section id="rhythm">
+        <span class="eyebrow">持续节奏</span>
+        <h2>每天 45 分钟、每周一次整理</h2>
+        <div class="grid two">
+          <div class="card">
+            <h3>每日会话</h3>
+            <ol>
+              <li>解锁并确认“同步完成”。</li>
+              <li>打开“今日”，完成到期回顾（5—10 分钟）。</li>
+              <li>“继续当前节点”，先写已有理解（5 分钟）。</li>
+              <li>阅读/实验并记录证据（20—25 分钟）。</li>
+              <li>写修正、边界和下一问题（5 分钟）。</li>
+              <li>创建 1—3 张关键复习卡，确认同步。</li>
+            </ol>
+          </div>
+          <div class="card">
+            <h3>每周整理</h3>
+            <ol>
+              <li>打开知识树，处理孤立或过大的节点。</li>
+              <li>检查所有“待核实”和“确信度低”。</li>
+              <li>把资料/论文中的结论提炼成节点。</li>
+              <li>合并重复节点，补内部链接和来源。</li>
+              <li>重新生成主题图谱，检查跨领域关系。</li>
+              <li>选择下周唯一的主主题与当前节点。</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section id="troubleshooting">
+        <span class="eyebrow">问题排查</span>
+        <h2>看到异常时按顺序处理</h2>
+        <details open><summary>一直显示“已锁定”</summary><div><ol><li>点击“解锁”。</li><li>输入首次创建加密空间时使用的同一个客户端密码。</li><li>不要输入服务器访问密码。</li><li>如果确实丢失客户端密码，加密内容无法恢复；这是端到端加密的安全保证。</li></ol></div></details>
+        <details><summary>服务器明明在线，但同步不可用</summary><div><ol><li>打开“同步与安全”→“修改配置”。</li><li>点击“测试连接”。</li><li>按提示分别检查主机名/端口、SHA-256 指纹、服务器访问密码。</li><li>测试成功后点击“保存并连接”，再输入客户端密码。</li></ol></div></details>
+        <details><summary>创建主题后没有节点</summary><div><ol><li>确认大纲至少有一个 Markdown 标题或任务。</li><li>推荐用 <code>## 阶段</code> 与 <code>- [ ] 任务</code>。</li><li>打开主题，执行“把 Markdown 大纲导入当前主题”。</li><li>如果仍失败，保留主题文件并查看通知，不要反复创建同名主题。</li></ol></div></details>
+        <details><summary>同步出现冲突文件</summary><div><ol><li>打开 <code>00-Inbox/Sync Conflicts</code>。</li><li>比较冲突副本与正式文件，不要直接删除。</li><li>把需要的内容合并回正式笔记。</li><li>确认同步完成后再删除已处理的冲突副本。</li></ol></div></details>
+        <details><summary>界面太专注，想临时使用 Obsidian 原生工具</summary><div><p>设置 → Learning Loop → 关闭“专注模式”，或命令面板执行“Learning Loop：切换 Learning Loop 专注模式”。再次开启即可恢复本手册中的界面。</p></div></details>
+        <details><summary>AI 上下文提示内容被省略</summary><div><p>该节点包含疑似密码、私钥、令牌或 API key。先把秘密移到密码管理器，只在笔记中保留条目名称，然后重新复制上下文。</p></div></details>
+      </section>
+
+      <section>
+        <span class="eyebrow">最后一条规则</span>
+        <h2>不要追求笔记数量，追求可解释的变化</h2>
+        <div class="callout success"><strong>一个完整学习会话的最小成果</strong>你修正了一个错误理解、增加了一条可复查证据、明确了一个边界，或在新场景中成功使用了一个原理。做到其中之一，就比创建十篇空模板更有价值。</div>
+      </section>
+
+      <footer class="footer">
+        Learning Loop v1.1 · 中文完整工作流手册 · 可离线保存、打印与导出 PDF
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const storedTheme = localStorage.getItem("learning-loop-handbook-theme");
+    if (storedTheme) root.dataset.theme = storedTheme;
+    else if (matchMedia("(prefers-color-scheme: dark)").matches) root.dataset.theme = "dark";
+
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+        localStorage.setItem("learning-loop-handbook-theme", root.dataset.theme);
+      });
+    });
+
+    const checkboxes = [...document.querySelectorAll('.checklist input[type="checkbox"]')];
+    checkboxes.forEach((input) => {
+      const key = `learning-loop-handbook-${input.id}`;
+      input.checked = localStorage.getItem(key) === "1";
+      input.addEventListener("change", () => {
+        localStorage.setItem(key, input.checked ? "1" : "0");
+      });
+    });
+    document.getElementById("resetChecks").addEventListener("click", () => {
+      checkboxes.forEach((input) => {
+        input.checked = false;
+        localStorage.removeItem(`learning-loop-handbook-${input.id}`);
+      });
+    });
+
+    document.querySelectorAll("pre").forEach((pre) => {
+      const button = document.createElement("button");
+      button.className = "copy";
+      button.type = "button";
+      button.textContent = "复制";
+      button.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(pre.querySelector("code").textContent);
+        button.textContent = "已复制";
+        setTimeout(() => { button.textContent = "复制"; }, 1200);
+      });
+      pre.append(button);
+    });
+
+    const progress = document.getElementById("progress");
+    const updateProgress = () => {
+      const maximum = document.documentElement.scrollHeight - innerHeight;
+      progress.style.width = `${maximum <= 0 ? 100 : scrollY / maximum * 100}%`;
+    };
+    addEventListener("scroll", updateProgress, { passive: true });
+    updateProgress();
+
+    const links = [...document.querySelectorAll("nav a")];
+    const sections = links
+      .map((link) => document.querySelector(link.getAttribute("href")))
+      .filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      links.forEach((link) => {
+        link.classList.toggle("active", link.getAttribute("href") === `#${visible.target.id}`);
+      });
+    }, { rootMargin: "-15% 0px -70% 0px", threshold: [0, .2, .8] });
+    sections.forEach((section) => observer.observe(section));
+  </script>
+</body>
+</html>

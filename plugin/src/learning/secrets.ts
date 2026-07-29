@@ -6,9 +6,13 @@ const SECRET_PATTERNS = [
 ] as const;
 
 export function rejectLikelySecrets(value: string): void {
-  if (SECRET_PATTERNS.some((pattern) => pattern.test(value))) {
+  if (containsLikelySecrets(value)) {
     throw new Error(
       "possible password, private key, or token detected; store only a secret-manager reference",
     );
   }
+}
+
+export function containsLikelySecrets(value: string): boolean {
+  return SECRET_PATTERNS.some((pattern) => pattern.test(value));
 }

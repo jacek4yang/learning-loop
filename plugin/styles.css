@@ -388,3 +388,682 @@
     gap: var(--size-4-3);
   }
 }
+
+/* Focus mode turns Obsidian into a purpose-built Learning Loop workspace.
+   The preference is reversible from the plugin settings or command palette. */
+body.learning-loop-focus-mode
+  .workspace-ribbon
+  .side-dock-ribbon-action:not(.learning-loop-ribbon-entry) {
+  display: none;
+}
+
+body.learning-loop-focus-mode
+  .status-bar-item:not(.plugin-learning-loop) {
+  display: none;
+}
+
+body.learning-loop-focus-mode .workspace-ribbon {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--interactive-accent) 10%, var(--background-secondary)),
+      var(--background-secondary)
+    );
+  border-inline-end-color:
+    color-mix(in srgb, var(--interactive-accent) 18%, var(--background-modifier-border));
+}
+
+body.learning-loop-focus-mode .learning-loop-ribbon-entry {
+  background: var(--interactive-accent);
+  border-radius: 12px;
+  color: var(--text-on-accent);
+  margin-block-start: var(--size-4-2);
+}
+
+body.learning-loop-focus-mode .workspace-split.mod-root .workspace-tab-container {
+  background: var(--background-primary);
+}
+
+body.learning-loop-focus-mode .workspace-tab-header.is-active {
+  color: var(--text-accent);
+}
+
+.learning-loop-sidebar-current {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--interactive-accent) 15%, var(--background-secondary)),
+      color-mix(in srgb, var(--color-purple) 9%, var(--background-secondary))
+    );
+  border: 1px solid
+    color-mix(in srgb, var(--interactive-accent) 24%, var(--background-modifier-border));
+  border-radius: var(--radius-l);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-block-end: var(--size-4-5);
+  padding: var(--size-4-4);
+}
+
+.learning-loop-sidebar-current strong {
+  font-size: var(--font-ui-medium);
+  line-height: 1.35;
+}
+
+.learning-loop-sidebar-current small {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.learning-loop-sidebar-tools {
+  display: grid;
+  gap: var(--size-4-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.learning-loop-sidebar-tool {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  color: var(--text-normal);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-ui-smaller);
+  gap: 7px;
+  justify-content: center;
+  min-height: 72px;
+  padding: var(--size-4-2);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.learning-loop-sidebar-tool svg {
+  color: var(--text-accent);
+  height: 21px;
+  width: 21px;
+}
+
+.learning-loop-sidebar-tool:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--interactive-accent) 9%, var(--background-secondary));
+  border-color:
+    color-mix(in srgb, var(--interactive-accent) 48%, var(--background-modifier-border));
+  box-shadow: 0 8px 20px
+    color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+  transform: translateY(-2px);
+}
+
+.learning-loop-sidebar-tool.is-primary {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.learning-loop-sidebar-tool.is-primary svg {
+  color: var(--text-on-accent);
+}
+
+.learning-loop-sidebar-sync-panel {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-block-start: var(--size-4-5);
+  padding-block-start: var(--size-4-3);
+}
+
+.learning-loop-sidebar-sync-panel > summary {
+  align-items: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  gap: var(--size-4-2);
+  list-style: none;
+  padding-block: var(--size-4-2);
+}
+
+.learning-loop-sidebar-sync-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.learning-loop-sidebar-sync-panel[open] > summary {
+  color: var(--text-accent);
+}
+
+.learning-loop-sidebar-sync-panel .learning-loop-sidebar-actions {
+  margin-block-start: var(--size-4-2);
+}
+
+.learning-loop-form-modal {
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      color-mix(in srgb, var(--interactive-accent) 10%, transparent),
+      transparent 32%
+    ),
+    var(--background-primary);
+  max-width: min(780px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  width: 780px;
+}
+
+.learning-loop-form-panel {
+  overflow: visible;
+  padding-block-end: var(--size-4-2);
+}
+
+.learning-loop-modal-hero {
+  align-items: center;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--interactive-accent) 14%, var(--background-secondary)),
+      color-mix(in srgb, var(--color-purple) 8%, var(--background-secondary))
+    );
+  border: 1px solid
+    color-mix(in srgb, var(--interactive-accent) 24%, var(--background-modifier-border));
+  border-radius: var(--radius-l);
+  display: flex;
+  gap: var(--size-4-4);
+  margin-block: var(--size-4-2) var(--size-4-5);
+  padding: var(--size-4-4);
+}
+
+.learning-loop-modal-hero h3,
+.learning-loop-modal-hero p {
+  margin: 0;
+}
+
+.learning-loop-modal-hero h3 {
+  font-size: var(--font-ui-large);
+  margin-block: 2px 4px;
+}
+
+.learning-loop-modal-hero p {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.learning-loop-modal-hero-icon {
+  align-items: center;
+  background: var(--interactive-accent);
+  border-radius: 15px;
+  box-shadow: 0 10px 26px
+    color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+  color: var(--text-on-accent);
+  display: flex;
+  flex: 0 0 52px;
+  height: 52px;
+  justify-content: center;
+}
+
+.learning-loop-modal-hero-icon svg {
+  height: 26px;
+  width: 26px;
+}
+
+.learning-loop-modal-eyebrow {
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.05em;
+}
+
+.learning-loop-form-panel > .setting-item:not(.learning-loop-form-actions) {
+  align-items: stretch;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  flex-direction: column;
+  gap: var(--size-4-3);
+  margin-block-end: var(--size-4-3);
+  padding: var(--size-4-4);
+}
+
+.learning-loop-form-panel .setting-item-control,
+.learning-loop-form-panel input,
+.learning-loop-form-panel textarea,
+.learning-loop-form-panel select {
+  width: 100%;
+}
+
+.learning-loop-form-panel input,
+.learning-loop-form-panel textarea,
+.learning-loop-form-panel select {
+  background: var(--background-primary);
+  border-color:
+    color-mix(in srgb, var(--interactive-accent) 16%, var(--background-modifier-border));
+  border-radius: var(--radius-m);
+  padding: 11px 13px;
+}
+
+.learning-loop-form-panel textarea {
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.learning-loop-form-panel input:focus,
+.learning-loop-form-panel textarea:focus,
+.learning-loop-form-panel select:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+}
+
+.learning-loop-form-tip {
+  background: color-mix(in srgb, var(--color-blue) 9%, var(--background-secondary));
+  border-radius: var(--radius-m);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  margin: 0 0 var(--size-4-4);
+  padding: var(--size-4-3);
+}
+
+.learning-loop-form-actions {
+  background: var(--background-primary);
+  border-top: 1px solid var(--background-modifier-border);
+  justify-content: flex-end;
+  margin-block-start: var(--size-4-5);
+  padding-block: var(--size-4-3);
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+}
+
+.learning-loop-form-actions .setting-item-control {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.learning-loop-form-actions button {
+  min-width: 108px;
+}
+
+.learning-loop-create-grid {
+  display: grid;
+  gap: var(--size-4-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.learning-loop-create-card {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  color: var(--text-normal);
+  display: flex;
+  gap: var(--size-4-3);
+  min-height: 96px;
+  padding: var(--size-4-4);
+  text-align: start;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.learning-loop-create-card:hover {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 12px 30px
+    color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  transform: translateY(-2px);
+}
+
+.learning-loop-create-card-icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+  border-radius: 13px;
+  color: var(--text-accent);
+  display: flex;
+  flex: 0 0 46px;
+  height: 46px;
+  justify-content: center;
+}
+
+.learning-loop-create-card-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.learning-loop-create-card-copy strong {
+  font-size: var(--font-ui-medium);
+}
+
+.learning-loop-create-card-copy small {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.learning-loop-create-card-arrow {
+  color: var(--text-faint);
+}
+
+.learning-loop-tree-view {
+  background:
+    radial-gradient(
+      circle at 8% 0%,
+      color-mix(in srgb, var(--interactive-accent) 10%, transparent),
+      transparent 30%
+    );
+  padding: clamp(18px, 3vw, 42px);
+}
+
+.learning-loop-tree-hero {
+  align-items: center;
+  display: flex;
+  gap: var(--size-4-4);
+  margin-block-end: var(--size-4-5);
+}
+
+.learning-loop-tree-hero h2,
+.learning-loop-tree-hero p {
+  margin: 0;
+}
+
+.learning-loop-tree-hero h2 {
+  font-size: clamp(24px, 3vw, 36px);
+  margin-block: 2px 5px;
+}
+
+.learning-loop-tree-hero p {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.learning-loop-tree-hero-icon {
+  align-items: center;
+  background: linear-gradient(145deg, var(--interactive-accent), var(--color-purple));
+  border-radius: 18px;
+  box-shadow: 0 12px 32px
+    color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+  color: var(--text-on-accent);
+  display: flex;
+  flex: 0 0 64px;
+  height: 64px;
+  justify-content: center;
+}
+
+.learning-loop-tree-hero-icon svg {
+  height: 30px;
+  width: 30px;
+}
+
+.learning-loop-tree-eyebrow {
+  color: var(--text-accent);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.learning-loop-tree-statistics {
+  display: grid;
+  gap: var(--size-4-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-block-end: var(--size-4-4);
+}
+
+.learning-loop-tree-statistic {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  display: flex;
+  gap: var(--size-4-3);
+  padding: var(--size-4-3) var(--size-4-4);
+}
+
+.learning-loop-tree-statistic > span:first-child {
+  color: var(--text-accent);
+}
+
+.learning-loop-tree-statistic > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.learning-loop-tree-statistic strong {
+  font-size: 1.35em;
+}
+
+.learning-loop-tree-statistic small {
+  color: var(--text-muted);
+}
+
+.learning-loop-tree-toolbar {
+  display: flex;
+  gap: var(--size-4-3);
+  margin-block-end: var(--size-4-4);
+}
+
+.learning-loop-tree-search {
+  flex: 1;
+  min-height: 42px;
+}
+
+.learning-loop-tree-toolbar-button {
+  align-items: center;
+  display: flex;
+  gap: var(--size-4-2);
+  min-height: 42px;
+}
+
+.learning-loop-tree-topics {
+  display: grid;
+  gap: var(--size-4-4);
+}
+
+.learning-loop-tree-topic {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  overflow: hidden;
+}
+
+.learning-loop-tree-topic-summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: var(--size-4-4);
+  grid-template-columns: minmax(160px, 1fr) minmax(100px, 0.55fr) auto;
+  list-style: none;
+  padding: var(--size-4-4);
+}
+
+.learning-loop-tree-topic-summary::-webkit-details-marker {
+  display: none;
+}
+
+.learning-loop-tree-topic-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.learning-loop-tree-topic-title strong {
+  font-size: var(--font-ui-large);
+}
+
+.learning-loop-tree-topic-title small {
+  color: var(--text-muted);
+}
+
+.learning-loop-tree-progress {
+  background: var(--background-modifier-border);
+  border-radius: 999px;
+  display: block;
+  height: 8px;
+  overflow: hidden;
+}
+
+.learning-loop-tree-progress > span {
+  background: linear-gradient(90deg, var(--interactive-accent), var(--color-green));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.learning-loop-tree-open {
+  align-items: center;
+  border-radius: 999px;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.learning-loop-tree-topic-body {
+  border-top: 1px solid var(--background-modifier-border);
+  padding: var(--size-4-3) var(--size-4-4) var(--size-4-4);
+}
+
+.learning-loop-tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.learning-loop-tree-node > .learning-loop-tree-list {
+  border-inline-start: 1px solid
+    color-mix(in srgb, var(--interactive-accent) 26%, var(--background-modifier-border));
+  margin-block: 5px 8px;
+  margin-inline-start: 14px;
+  padding-inline-start: 18px;
+}
+
+.learning-loop-tree-node {
+  position: relative;
+}
+
+.learning-loop-tree-node + .learning-loop-tree-node {
+  margin-block-start: 5px;
+}
+
+.learning-loop-tree-node-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-m);
+  color: var(--text-normal);
+  display: flex;
+  gap: var(--size-4-3);
+  height: auto;
+  margin-block: 3px;
+  min-height: 58px;
+  overflow: visible;
+  padding: 9px 10px;
+  text-align: start;
+  white-space: normal;
+  width: 100%;
+}
+
+.learning-loop-tree-node-button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.learning-loop-tree-node.is-current > .learning-loop-tree-node-button {
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+
+.learning-loop-tree-node-dot {
+  background: var(--text-warning);
+  border: 3px solid
+    color-mix(in srgb, var(--text-warning) 18%, var(--background-primary));
+  border-radius: 999px;
+  flex: 0 0 12px;
+  height: 12px;
+}
+
+.learning-loop-tree-node.is-mastered > .learning-loop-tree-node-button
+  > .learning-loop-tree-node-dot {
+  background: var(--text-success);
+  border-color:
+    color-mix(in srgb, var(--text-success) 18%, var(--background-primary));
+}
+
+.learning-loop-tree-node.is-current > .learning-loop-tree-node-button
+  > .learning-loop-tree-node-dot {
+  background: var(--interactive-accent);
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+}
+
+.learning-loop-tree-node-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.learning-loop-tree-node-copy strong {
+  line-height: 1.35;
+}
+
+.learning-loop-tree-node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  line-height: 1.25;
+  min-height: 20px;
+}
+
+.learning-loop-tree-node-badges > span {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.78em;
+  padding: 1px 7px;
+}
+
+.learning-loop-tree-empty {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  display: flex;
+  flex-direction: column;
+  padding: clamp(36px, 8vw, 86px) var(--size-4-5);
+  text-align: center;
+}
+
+.learning-loop-tree-empty > div {
+  color: var(--text-accent);
+}
+
+.learning-loop-tree-empty h3 {
+  margin-block: var(--size-4-3) var(--size-4-2);
+}
+
+.learning-loop-tree-empty p {
+  color: var(--text-muted);
+  margin-block: 0 var(--size-4-4);
+  max-width: 520px;
+}
+
+@media (max-width: 700px) {
+  .learning-loop-create-grid,
+  .learning-loop-tree-statistics {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-loop-tree-topic-summary {
+    grid-template-columns: 1fr auto;
+  }
+
+  .learning-loop-tree-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .learning-loop-tree-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

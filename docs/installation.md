@@ -14,8 +14,8 @@ sha256sum -c SHA256SUMS
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\learning-loop-server-1.0.3-windows-x86_64.zip -Algorithm SHA256
-Get-FileHash .\learning-loop-plugin-1.0.3.zip -Algorithm SHA256
+Get-FileHash .\learning-loop-server-1.1.0-windows-x86_64.zip -Algorithm SHA256
+Get-FileHash .\learning-loop-plugin-1.1.0.zip -Algorithm SHA256
 ```
 
 Compare the displayed lowercase hashes with `SHA256SUMS`. Each archive also
@@ -62,7 +62,7 @@ and opaque objects. Restrict its permissions to the service account.
 
 ## Install the Obsidian plugin manually
 
-1. Extract `learning-loop-plugin-1.0.3.zip`.
+1. Extract `learning-loop-plugin-1.1.0.zip`.
 2. Create `<Vault>/.obsidian/plugins/learning-loop/`.
 3. Copy `manifest.json`, `main.js`, `styles.css`, `core.wasm`, and
    `versions.json` into that directory.

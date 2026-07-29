@@ -884,7 +884,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "ll-canonical"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "proptest",
  "serde",
@@ -896,7 +896,7 @@ dependencies = [
 
 [[package]]
 name = "ll-client"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "ed25519-dalek",
  "ll-crypto",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "ll-client-core"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "blake3",
  "getrandom 0.2.17",
@@ -933,7 +933,7 @@ dependencies = [
 
 [[package]]
 name = "ll-crypto"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "argon2",
  "base32ct",
@@ -953,13 +953,14 @@ dependencies = [
  "subtle",
  "tempfile",
  "thiserror",
+ "web-time",
  "x25519-dalek",
  "zeroize",
 ]
 
 [[package]]
 name = "ll-protocol"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "minicbor",
  "proptest",
@@ -968,7 +969,7 @@ dependencies = [
 
 [[package]]
 name = "ll-server"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -998,7 +999,7 @@ dependencies = [
 
 [[package]]
 name = "ll-testkit"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "ed25519-dalek",
  "getrandom 0.4.3",
@@ -1011,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "ll-versioning"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "blake3",
  "ed25519-dalek",
@@ -1025,6 +1026,7 @@ dependencies = [
  "subtle",
  "thiserror",
  "uuid",
+ "web-time",
 ]
 
 [[package]]
@@ -1997,6 +1999,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1b4cb0cc549fcf58d7dfc081778139b3d283a081644e833e84682ad71cea24"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "web-time"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]
