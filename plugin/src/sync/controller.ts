@@ -9,6 +9,7 @@ import {
 } from "../settings";
 import type {
   ConnectionTestCredentials,
+  ConnectionTestResult,
   SetupCredentials,
 } from "../ui/credentials-modal";
 import {
@@ -99,7 +100,7 @@ export class SyncController {
 
   async testConnection(
     credentials: ConnectionTestCredentials,
-  ): Promise<void> {
+  ): Promise<ConnectionTestResult> {
     const storedServerPassword = await this.repository.serverPassword();
     const serverPassword = credentials.serverPassword.length > 0
       ? credentials.serverPassword
@@ -118,6 +119,10 @@ export class SyncController {
         serverPassword,
       );
       session = connection.session;
+      return {
+        vaultInitialized:
+          await session.tryGetVaultKeyEnvelope() !== undefined,
+      };
     } catch (error) {
       throw new Error(userFacingErrorMessage(error), { cause: error });
     } finally {
@@ -158,7 +163,9 @@ export class SyncController {
       );
       draftSaved = true;
     }
-    this.setStatus("connecting");
+    let phase = "正在验证服务器连接";
+    let setupCompleted = false;
+    this.setStatus("connecting", phase);
     const http = FixedRouteHttpTransport.fromHostAndPort(
       server.host,
       server.port,
@@ -172,10 +179,14 @@ export class SyncController {
         serverPassword,
       );
       session = connection.session;
+      phase = "正在检查服务器加密空间";
+      this.setStatus("connecting", phase);
       const existingEnvelope = await session.tryGetVaultKeyEnvelope();
       let encryptedDeviceIdentity: Uint8Array;
       let wrappedVaultKey: Uint8Array;
       if (existingEnvelope === undefined) {
+        phase = "正在创建服务器加密空间";
+        this.setStatus("connecting", phase);
         const created = WasmEncryptedCore.create(
           connection.vaultId,
           credentials.clientPassword,
@@ -184,18 +195,37 @@ export class SyncController {
         core = created.core;
         wrappedVaultKey = created.wrappedVaultKey;
         encryptedDeviceIdentity = created.encryptedDeviceIdentity;
+        phase = "正在注册这台设备";
+        this.setStatus("connecting", phase);
+        await session.registerDevice(core, server.deviceName);
+        phase = "正在保存服务器加密空间";
+        this.setStatus("connecting", phase);
         await session.putVaultKeyEnvelope(wrappedVaultKey);
       } else {
-        const created = WasmEncryptedCore.addDevice(
-          connection.vaultId,
-          credentials.clientPassword,
-          existingEnvelope,
-        );
+        phase = "正在用客户端密码解锁已有加密空间";
+        this.setStatus("connecting", phase);
+        let created: ReturnType<typeof WasmEncryptedCore.addDevice>;
+        try {
+          created = WasmEncryptedCore.addDevice(
+            connection.vaultId,
+            credentials.clientPassword,
+            existingEnvelope,
+          );
+        } catch (error) {
+          throw new Error(
+            "客户端密码与服务器已有加密空间不匹配。请输入最初创建该空间时使用的客户端密码；如果服务器尚无需要保留的数据，请停止服务端并清空其数据目录后重新初始化",
+            { cause: error },
+          );
+        }
         core = created.core;
         wrappedVaultKey = existingEnvelope;
         encryptedDeviceIdentity = created.encryptedDeviceIdentity;
+        phase = "正在注册这台设备";
+        this.setStatus("connecting", phase);
+        await session.registerDevice(core, server.deviceName);
       }
-      await session.registerDevice(core, server.deviceName);
+      phase = "正在保存本机设备配置";
+      this.setStatus("connecting", phase);
       const next = await this.repository.completeSetup(
         server,
         {
@@ -205,6 +235,7 @@ export class SyncController {
         },
         serverPassword,
       );
+      setupCompleted = true;
       this.lock();
       this.settings = next;
       this.core = core;
@@ -212,16 +243,22 @@ export class SyncController {
       this.initializeLocalStores(connection.vaultId);
       core = undefined;
       session = undefined;
+      phase = "正在进行首次同步";
       await this.syncNow();
     } catch (error) {
       session?.close();
       core?.lock();
       const message = userFacingErrorMessage(error);
-      this.setStatus("error", message);
+      const contextualMessage = setupCompleted
+        ? `设备配置已保存，但首次同步失败：${message}`
+        : `${phase}失败：${message}`;
+      this.setStatus("error", contextualMessage);
       throw new Error(
-        draftSaved
-          ? `${message}。服务器配置与访问密码已保存；客户端加密密码未保存。`
-          : message,
+        setupCompleted
+          ? `${contextualMessage}。请在右侧栏点击“立即同步”重试`
+          : draftSaved
+          ? `${contextualMessage}。服务器配置与访问密码已保存；客户端密码未保存`
+          : contextualMessage,
         { cause: error },
       );
     }
@@ -424,6 +461,9 @@ export class SyncController {
 
 export function userFacingErrorMessage(error: unknown): string {
   if (error instanceof EncryptedProtocolError) {
+    if (error.code === 1) {
+      return "服务器当前状态不允许此操作，请关闭配置窗口后重新连接";
+    }
     if (error.code === 2) {
       return "服务器访问密码不正确，或该设备已失去授权";
     }
@@ -442,6 +482,12 @@ export function userFacingErrorMessage(error: unknown): string {
     if (error.code === 13) {
       return "服务器正在限流，请稍后重试";
     }
+    if (error.code === 18) {
+      return "服务器尚未创建加密同步空间";
+    }
+    if (error.code === 19) {
+      return "服务器已存在另一个加密同步空间，请使用最初设置的客户端密码";
+    }
     return `服务器拒绝了本次安全操作（错误代码 ${error.code.toString()}）`;
   }
   if (error instanceof TransportError) {
@@ -458,6 +504,12 @@ export function userFacingErrorMessage(error: unknown): string {
     : "encrypted synchronization failed";
   const knownMessages: Record<string, string> = {
     "Learning Loop is locked": "Learning Loop 尚未解锁",
+    "client cryptographic operation failed":
+      "客户端密码无法解锁服务器已有的加密空间，请使用最初设置的客户端密码",
+    "client Noise operation failed":
+      "安全连接握手失败，请确认客户端与服务端版本一致",
+    "client protocol operation failed":
+      "客户端与服务端协议不兼容，请更新两端后重试",
     "client password must be strong and different from the server password":
       "客户端密码强度不足，或与服务器访问密码相同",
     "encrypted synchronization is not configured": "尚未完成加密同步配置",

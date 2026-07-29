@@ -139,10 +139,8 @@
 }
 
 .learning-loop-config-actions {
-  position: sticky;
-  bottom: 0;
-  background: color-mix(in srgb, var(--background-primary) 94%, transparent);
-  backdrop-filter: blur(8px);
+  position: static;
+  background: var(--background-primary);
   border-top: 1px solid var(--background-modifier-border);
   margin: var(--size-4-4) calc(var(--size-4-4) * -1) calc(var(--size-4-4) * -1);
   padding: var(--size-4-3) var(--size-4-4);
@@ -175,6 +173,10 @@
 
 .learning-loop-connection-test-result[data-state="success"] {
   color: var(--text-success);
+}
+
+.learning-loop-connection-test-result[data-state="warning"] {
+  color: var(--text-warning);
 }
 
 .learning-loop-connection-test-result[data-state="error"] {

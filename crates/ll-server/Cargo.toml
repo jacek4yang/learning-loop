@@ -13,9 +13,9 @@ bytes.workspace = true
 ed25519-dalek.workspace = true
 fs2.workspace = true
 hex.workspace = true
-ll-crypto = { path = "../ll-crypto", version = "1.0.2" }
-ll-protocol = { path = "../ll-protocol", version = "1.0.2" }
-ll-versioning = { path = "../ll-versioning", version = "1.0.2" }
+ll-crypto = { path = "../ll-crypto", version = "1.0.3" }
+ll-protocol = { path = "../ll-protocol", version = "1.0.3" }
+ll-versioning = { path = "../ll-versioning", version = "1.0.3" }
 rusqlite.workspace = true
 serde.workspace = true
 snow.workspace = true
@@ -30,7 +30,7 @@ uuid.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-ll-testkit = { path = "../ll-testkit", version = "1.0.2" }
+ll-testkit = { path = "../ll-testkit", version = "1.0.3" }
 tempfile.workspace = true
 
 [lints]

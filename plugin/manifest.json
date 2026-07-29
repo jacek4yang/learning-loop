@@ -1,7 +1,7 @@
 {
   "id": "learning-loop",
   "name": "Learning Loop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.12.0",
   "description": "End-to-end encrypted synchronization and durable learning workflows.",
   "author": "Learning Loop contributors",

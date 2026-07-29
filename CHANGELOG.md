@@ -3,6 +3,18 @@
 All notable changes are documented here. Learning Loop follows semantic
 versioning for the server protocol implementation and Obsidian plugin package.
 
+## 1.0.3 - 2026-07-29
+
+- Distinguish an uninitialized server from one that already contains an
+  encrypted synchronization space during the non-mutating connection test.
+- Make first-device setup register the device before publishing the encrypted
+  vault envelope, avoiding a password-wrapped half-initialized server when
+  registration fails.
+- Explain client-password mismatches and every first-setup phase in Chinese
+  instead of falling back to a generic incomplete-operation message.
+- Keep the setup action bar in normal document flow so it no longer overlays
+  or clips the final configuration fields.
+
 ## 1.0.2 - 2026-07-29
 
 - Add a non-mutating **测试连接** action to the encrypted synchronization

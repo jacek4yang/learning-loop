@@ -216,6 +216,9 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
         primary.send(Request::GetVaultKeyEnvelope).await,
         Response::Error(ErrorCode::VaultKeyEnvelopeNotFound)
     );
+    // First-run clients register their device before publishing the wrapped
+    // vault key so a failed registration cannot strand an unusable envelope.
+    let device = register_test_device(&mut primary).await;
     let vault_key_envelope = ll_crypto::random_array::<96>().unwrap().to_vec();
     assert_eq!(
         primary
@@ -241,7 +244,6 @@ async fn encrypted_service_handles_resumption_replay_and_revocation() {
             .await,
         Response::Error(ErrorCode::VaultKeyEnvelopeConflict)
     );
-    let device = register_test_device(&mut primary).await;
 
     let mut secondary = ClientSession::connect(service.address, &bootstrap).await;
     let authenticated_vault = secondary

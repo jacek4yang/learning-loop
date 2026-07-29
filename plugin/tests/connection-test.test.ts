@@ -21,10 +21,13 @@ import { SyncController } from "../src/sync/controller";
 const FINGERPRINT = `SHA256:${"A".repeat(52)}`;
 
 describe("connection diagnostics", () => {
-  it("reuses the stored server password and closes the read-only test session", async () => {
+  it("reports an existing vault, reuses the stored password, and closes the session", async () => {
     const close = vi.fn();
+    const tryGetVaultKeyEnvelope = vi.fn(() =>
+      Promise.resolve(new Uint8Array([1]))
+    );
     connect.mockResolvedValueOnce({
-      session: { close },
+      session: { close, tryGetVaultKeyEnvelope },
       vaultId: "11".repeat(16),
       deviceAuthenticated: false,
     });
@@ -40,7 +43,7 @@ describe("connection diagnostics", () => {
       vi.fn(),
     );
 
-    await controller.testConnection({
+    const result = await controller.testConnection({
       host: "notes.example.net",
       port: 48_632,
       fingerprint: FINGERPRINT,
@@ -53,6 +56,39 @@ describe("connection diagnostics", () => {
       FINGERPRINT,
       "stored-server-password",
     );
+    expect(tryGetVaultKeyEnvelope).toHaveBeenCalledOnce();
+    expect(result).toEqual({ vaultInitialized: true });
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("reports an uninitialized server without mutating it", async () => {
+    const close = vi.fn();
+    const tryGetVaultKeyEnvelope = vi.fn(() => Promise.resolve(undefined));
+    connect.mockResolvedValueOnce({
+      session: { close, tryGetVaultKeyEnvelope },
+      vaultId: "22".repeat(16),
+      deviceAuthenticated: false,
+    });
+    const repository = {
+      serverPassword: vi.fn(() => Promise.resolve(undefined)),
+    } as unknown as SettingsRepository;
+    const controller = new SyncController(
+      {} as App,
+      "learning-loop",
+      repository,
+      vi.fn(),
+    );
+
+    const result = await controller.testConnection({
+      host: "notes.example.net",
+      port: 48_632,
+      fingerprint: FINGERPRINT,
+      deviceName: "连接测试",
+      serverPassword: "typed-server-password",
+    });
+
+    expect(result).toEqual({ vaultInitialized: false });
+    expect(tryGetVaultKeyEnvelope).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
   });
 });

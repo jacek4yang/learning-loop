@@ -1,6 +1,6 @@
 {
   "name": "learning-loop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "End-to-end encrypted Obsidian synchronization and learning workflows",
   "license": "Apache-2.0",

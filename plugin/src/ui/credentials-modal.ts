@@ -19,9 +19,13 @@ export interface ConnectionTestCredentials extends ServerSettings {
   readonly serverPassword: string;
 }
 
+export interface ConnectionTestResult {
+  readonly vaultInitialized: boolean;
+}
+
 export type ConnectionTester = (
   credentials: ConnectionTestCredentials,
-) => Promise<void>;
+) => Promise<ConnectionTestResult>;
 
 export function requestSetupCredentials(
   app: App,
@@ -204,10 +208,14 @@ class SetupModal extends Modal {
             void testConnection({
               ...server,
               serverPassword: this.serverPassword,
-            }).then(() => {
-              testResult.dataset.state = "success";
+            }).then((result) => {
+              testResult.dataset.state = result.vaultInitialized
+                ? "warning"
+                : "success";
               testResult.setText(
-                "连接成功：服务器可达，指纹和服务器访问密码均已通过验证。",
+                result.vaultInitialized
+                  ? "连接成功：服务器已有加密同步空间。配置这台设备时，客户端密码必须与最初创建该空间时使用的密码完全相同。"
+                  : "连接成功：服务器可达且尚未初始化。点击“保存并连接”将创建新的加密同步空间。",
               );
             }).catch((connectionError: unknown) => {
               testResult.dataset.state = "error";
