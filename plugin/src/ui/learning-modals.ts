@@ -133,14 +133,14 @@ class TextPromptModal extends ResultModal<string> {
     }
     new Setting(this.contentEl)
       .addButton((button) => {
-        button.setButtonText("Save").setCta().onClick(() => {
+        button.setButtonText("保存").setCta().onClick(() => {
           if (this.value.trim() !== "") {
             this.finish(this.value.trim());
           }
         });
       })
       .addButton((button) => {
-        button.setButtonText("Cancel").onClick(() => {
+        button.setButtonText("取消").onClick(() => {
           this.close();
         });
       });
@@ -152,18 +152,18 @@ class TopicModal extends ResultModal<TopicInput> {
   private outline = "";
 
   override onOpen(): void {
-    this.setTitle("Create learning topic");
+    this.setTitle("创建学习主题");
     this.contentEl.addClass("learning-loop-mobile-panel");
     new Setting(this.contentEl)
-      .setName("Topic title")
+      .setName("主题名称")
       .addText((text) => {
         text.onChange((value) => {
           this.title = value;
         });
       });
     new Setting(this.contentEl)
-      .setName("Markdown outline")
-      .setDesc("Optional headings and task lists become a stable node tree.")
+      .setName("Markdown 大纲")
+      .setDesc("可选；标题和任务列表会转换成清晰、稳定的学习路径。")
       .addTextArea((text) => {
         text.inputEl.rows = 12;
         text.onChange((value) => {
@@ -172,7 +172,7 @@ class TopicModal extends ResultModal<TopicInput> {
       });
     new Setting(this.contentEl)
       .addButton((button) => {
-        button.setButtonText("Create").setCta().onClick(() => {
+        button.setButtonText("创建").setCta().onClick(() => {
           if (this.title.trim() !== "") {
             this.finish({
               title: this.title.trim(),
@@ -182,7 +182,7 @@ class TopicModal extends ResultModal<TopicInput> {
         });
       })
       .addButton((button) => {
-        button.setButtonText("Cancel").onClick(() => {
+        button.setButtonText("取消").onClick(() => {
           this.close();
         });
       });
@@ -196,25 +196,25 @@ class CardModal extends ResultModal<CardInput> {
   private answer = "";
 
   override onOpen(): void {
-    this.setTitle("Create review card");
+    this.setTitle("创建回顾卡片");
     this.contentEl.addClass("learning-loop-mobile-panel");
-    this.addText("Title", (value) => {
+    this.addText("标题", (value) => {
       this.title = value;
     });
     new Setting(this.contentEl)
-      .setName("Card type")
+      .setName("卡片类型")
       .addDropdown((dropdown) => {
         this.configureTypes(dropdown);
       });
-    this.addArea("Prompt", (value) => {
+    this.addArea("提示", (value) => {
       this.prompt = value;
     });
-    this.addArea("Answer", (value) => {
+    this.addArea("答案", (value) => {
       this.answer = value;
     });
     new Setting(this.contentEl)
       .addButton((button) => {
-        button.setButtonText("Create").setCta().onClick(() => {
+        button.setButtonText("创建").setCta().onClick(() => {
           if (
             this.title.trim() !== ""
             && this.prompt.trim() !== ""
@@ -230,7 +230,7 @@ class CardModal extends ResultModal<CardInput> {
         });
       })
       .addButton((button) => {
-        button.setButtonText("Cancel").onClick(() => {
+        button.setButtonText("取消").onClick(() => {
           this.close();
         });
       });
@@ -318,7 +318,7 @@ class ReviewModal extends Modal {
   }
 
   override async onOpen(): Promise<void> {
-    this.setTitle("Today's reviews");
+    this.setTitle("今日回顾");
     this.contentEl.addClass("learning-loop-review-panel");
     this.titleElement = this.contentEl.createEl("h3");
     this.promptElement = this.contentEl.createDiv({
@@ -349,8 +349,8 @@ class ReviewModal extends Modal {
     actions.empty();
     const card = this.cards[this.index];
     if (card === undefined) {
-      title.setText("Review complete");
-      prompt.setText("No cards are due.");
+      title.setText("今天的回顾已完成");
+      prompt.setText("当前没有到期卡片。");
       return;
     }
     title.setText(`${(this.index + 1).toString()} / ${this.cards.length.toString()} · ${card.basename}`);
@@ -359,7 +359,7 @@ class ReviewModal extends Modal {
     answer.setText(sectionContent(content, "答案"));
     answer.hide();
     new Setting(actions).addButton((button) => {
-      button.setButtonText("Reveal answer").setCta().onClick(() => {
+      button.setButtonText("显示答案").setCta().onClick(() => {
         answer.show();
         actions.empty();
         this.addGradeButtons(actions, card);
@@ -391,7 +391,7 @@ function isCardType(value: string): value is CardType {
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) {
-    throw new Error("review panel is not ready");
+    throw new Error("回顾面板尚未准备好");
   }
   return value;
 }

@@ -14,8 +14,8 @@ sha256sum -c SHA256SUMS
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\learning-loop-server-1.0.0-windows-x86_64.zip -Algorithm SHA256
-Get-FileHash .\learning-loop-plugin-1.0.0.zip -Algorithm SHA256
+Get-FileHash .\learning-loop-server-1.0.1-windows-x86_64.zip -Algorithm SHA256
+Get-FileHash .\learning-loop-plugin-1.0.1.zip -Algorithm SHA256
 ```
 
 Compare the displayed lowercase hashes with `SHA256SUMS`. Each archive also
@@ -62,17 +62,20 @@ and opaque objects. Restrict its permissions to the service account.
 
 ## Install the Obsidian plugin manually
 
-1. Extract `learning-loop-plugin-1.0.0.zip`.
+1. Extract `learning-loop-plugin-1.0.1.zip`.
 2. Create `<Vault>/.obsidian/plugins/learning-loop/`.
 3. Copy `manifest.json`, `main.js`, `styles.css`, `core.wasm`, and
    `versions.json` into that directory.
 4. In Obsidian, enable Community plugins and then enable **Learning Loop**.
-5. Run **Learning Loop: Set up encrypted synchronization**.
+5. The first-run setup opens automatically. You can reopen it from the
+   Learning Loop right sidebar at any time.
 6. Enter the server host, port, trusted fingerprint, server access password,
    a different strong client encryption password, and a device name.
 
 The server password is stored through Obsidian SecretStorage. The client
 encryption password remains memory-only and is required after a process restart.
+After configuration, Learning Loop opens the client-password unlock dialog when
+Obsidian starts, then synchronizes after a successful unlock.
 The local Vault stays ordinary readable Markdown while unlocked or disabled;
 protect the device with full-disk encryption and a strong screen lock.
 

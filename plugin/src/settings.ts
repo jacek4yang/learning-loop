@@ -55,11 +55,44 @@ export class SettingsRepository {
     );
     const next: LearningLoopSettings = {
       ...current,
-      server: validateServer(server),
+      server: normalizeServerSettings(server),
       vault: validateVault(vault),
     };
     await this.save(next);
     return next;
+  }
+
+  async saveInitialSetupDraft(
+    server: ServerSettings,
+    serverPassword?: string,
+  ): Promise<LearningLoopSettings> {
+    const current = await this.load();
+    if (current.vault !== undefined) {
+      return current;
+    }
+    if (serverPassword !== undefined) {
+      this.plugin.app.secretStorage.setSecret(
+        current.serverPasswordSecretId,
+        serverPassword,
+      );
+    }
+    const next: LearningLoopSettings = {
+      ...current,
+      server: normalizeServerSettings(server),
+    };
+    await this.save(next);
+    return next;
+  }
+
+  async serverPassword(): Promise<string | undefined> {
+    const current = await this.load();
+    return this.plugin.app.secretStorage.getSecret(
+      current.serverPasswordSecretId,
+    ) ?? undefined;
+  }
+
+  async hasServerPassword(): Promise<boolean> {
+    return (await this.serverPassword()) !== undefined;
   }
 }
 
@@ -87,7 +120,7 @@ function parseSettings(value: unknown): LearningLoopSettings {
     ? value.serverPasswordSecretId
     : randomSecretId();
   const server = isObject(value.server)
-    ? tryValidate(() => validateServer(value.server as ServerSettings))
+    ? tryValidate(() => normalizeServerSettings(value.server as ServerSettings))
     : undefined;
   const vault = isObject(value.vault)
     ? tryValidate(() => validateVault(value.vault as VaultKeySettings))
@@ -100,7 +133,7 @@ function parseSettings(value: unknown): LearningLoopSettings {
   };
 }
 
-function validateServer(server: ServerSettings): ServerSettings {
+export function normalizeServerSettings(server: ServerSettings): ServerSettings {
   const host = server.host.trim().toLowerCase();
   const fingerprint = server.fingerprint.trim();
   const deviceName = server.deviceName.trim();

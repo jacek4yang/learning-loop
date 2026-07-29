@@ -45,26 +45,40 @@ export class FixedRouteHttpTransport {
   }
 
   private async get(route: typeof BOOTSTRAP_ROUTE): Promise<Uint8Array> {
-    const response = await requestUrl({
-      url: `${this.baseUrl}${route}`,
-      method: "GET",
-      throw: false,
-    });
-    return exactResponse(response.status, response.arrayBuffer);
+    try {
+      const response = await requestUrl({
+        url: `${this.baseUrl}${route}`,
+        method: "GET",
+        throw: false,
+      });
+      return exactResponse(response.status, response.arrayBuffer);
+    } catch (error) {
+      if (error instanceof TransportError) {
+        throw error;
+      }
+      throw new TransportError(0);
+    }
   }
 
   private async post(
     route: typeof HANDSHAKE_ROUTE | typeof ENVELOPE_ROUTE,
     body: Uint8Array,
   ): Promise<Uint8Array> {
-    const response = await requestUrl({
-      url: `${this.baseUrl}${route}`,
-      method: "POST",
-      contentType: "application/octet-stream",
-      body: exactArrayBuffer(body),
-      throw: false,
-    });
-    return exactResponse(response.status, response.arrayBuffer);
+    try {
+      const response = await requestUrl({
+        url: `${this.baseUrl}${route}`,
+        method: "POST",
+        contentType: "application/octet-stream",
+        body: exactArrayBuffer(body),
+        throw: false,
+      });
+      return exactResponse(response.status, response.arrayBuffer);
+    } catch (error) {
+      if (error instanceof TransportError) {
+        throw error;
+      }
+      throw new TransportError(0);
+    }
   }
 }
 
@@ -84,7 +98,13 @@ function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 export class TransportError extends Error {
   constructor(readonly status: number) {
-    super(status === 429 ? "server rate limit is active" : "server transport failed");
+    super(
+      status === 0
+        ? "server is unreachable"
+        : status === 429
+        ? "server rate limit is active"
+        : `server returned HTTP ${status.toString()}`,
+    );
     this.name = "TransportError";
   }
 }

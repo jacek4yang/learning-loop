@@ -107,6 +107,7 @@ describe("LearningService Markdown-first integration", () => {
 
     expect(result.nodes).toHaveLength(3);
     expect(app.frontmatters.get(result.topic.path)).toMatchObject({
+      cssclasses: ["learning-loop-note"],
       ll_type: "topic",
       ll_status: "active",
     });
@@ -155,6 +156,28 @@ describe("LearningService Markdown-first integration", () => {
       ll_interval: 3,
       ll_repetitions: 1,
       ll_last_grade: "掌握",
+    });
+  });
+
+  it("hides implementation metadata on existing notes without removing user styles", async () => {
+    const app = new MemoryLearningApp();
+    const existing = await app.vault.create(
+      "10-Topics/Existing topic.md",
+      "# Existing topic\n",
+    );
+    app.frontmatters.set(existing.path, {
+      ll_type: "topic",
+      ll_id: "existing-topic",
+      cssclasses: ["wide-page"],
+    });
+    const service = new LearningService(app.asApp());
+
+    await service.initializeVault();
+
+    expect(app.frontmatters.get(existing.path)).toMatchObject({
+      cssclasses: ["wide-page", "learning-loop-note"],
+      ll_type: "topic",
+      ll_id: "existing-topic",
     });
   });
 

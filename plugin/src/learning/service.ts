@@ -63,6 +63,7 @@ export class LearningService {
     await this.ensureTemplate("Knowledge Node.md", NODE_TEMPLATE);
     await this.ensureTemplate("English Term.md", ENGLISH_TEMPLATE);
     await this.ensureTemplate("Paper.md", PAPER_TEMPLATE);
+    await this.applyDisplayDefaults();
   }
 
   metadataChanged(file: TFile): void {
@@ -722,6 +723,7 @@ export class LearningService {
   }
 
   async generateAllMaps(): Promise<void> {
+    await this.applyDisplayDefaults();
     for (const topic of this.filesByType("topic")) {
       await this.generateTopicMaps(topic);
     }
@@ -888,6 +890,7 @@ export class LearningService {
     const file = await this.app.vault.create(path, `${body.trimEnd()}\n`);
     try {
       await this.updateProperties(file, {
+        cssclasses: ["learning-loop-note"],
         ll_type: type,
         ll_title: cleanTitle(title),
         ll_created: this.now().toISOString(),
@@ -904,6 +907,24 @@ export class LearningService {
     const path = normalizePath(`90-Templates/${name}`);
     if (this.app.vault.getAbstractFileByPath(path) === null) {
       await this.app.vault.create(path, `${content.trimEnd()}\n`);
+    }
+  }
+
+  private async applyDisplayDefaults(): Promise<void> {
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      const properties = this.properties(file);
+      if (
+        !isLearningObjectType(properties.ll_type)
+        || cssClasses(properties.cssclasses).includes("learning-loop-note")
+      ) {
+        continue;
+      }
+      await this.updateProperties(file, {
+        cssclasses: [
+          ...cssClasses(properties.cssclasses),
+          "learning-loop-note",
+        ],
+      });
     }
   }
 
@@ -1019,6 +1040,28 @@ function applyPropertyChange(
       properties[key] = value;
     }
   }
+}
+
+function cssClasses(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string =>
+      typeof entry === "string" && entry.trim() !== ""
+    );
+  }
+  return typeof value === "string" && value.trim() !== ""
+    ? value.split(/\s+/u)
+    : [];
+}
+
+function isLearningObjectType(value: unknown): value is LearningObjectType {
+  return [
+    "topic",
+    "node",
+    "source",
+    "record",
+    "asset",
+    "card",
+  ].includes(value as LearningObjectType);
 }
 
 function outlineLinks(

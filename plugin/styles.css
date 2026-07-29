@@ -86,3 +86,278 @@
 .is-mobile .learning-loop-review-actions .setting-item-control {
   grid-template-columns: 1fr;
 }
+
+.learning-loop-config-modal {
+  max-width: min(760px, calc(100vw - 32px));
+  width: 760px;
+}
+
+.learning-loop-config-intro,
+.learning-loop-unlock-hero,
+.learning-loop-settings-intro {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--interactive-accent) 15%, var(--background-secondary)),
+      var(--background-secondary)
+    );
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 28%, var(--background-modifier-border));
+  border-radius: var(--radius-l);
+  color: var(--text-normal);
+  line-height: 1.6;
+  margin-block-end: var(--size-4-4);
+  padding: var(--size-4-4);
+}
+
+.learning-loop-config-section {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  margin-block-end: var(--size-4-4);
+  overflow: hidden;
+  padding: var(--size-4-2) var(--size-4-4);
+}
+
+.learning-loop-config-section h3 {
+  margin-block: var(--size-4-3) var(--size-4-1);
+}
+
+.learning-loop-config-section-description {
+  color: var(--text-muted);
+  margin-block: 0 var(--size-4-2);
+}
+
+.learning-loop-config-section .setting-item {
+  display: grid;
+  gap: var(--size-4-4);
+  grid-template-columns: minmax(180px, 0.9fr) minmax(260px, 1.1fr);
+}
+
+.learning-loop-config-section .setting-item-control,
+.learning-loop-config-section input {
+  width: 100%;
+}
+
+.learning-loop-config-actions {
+  position: sticky;
+  bottom: 0;
+  background: color-mix(in srgb, var(--background-primary) 94%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--background-modifier-border);
+  margin: var(--size-4-4) calc(var(--size-4-4) * -1) calc(var(--size-4-4) * -1);
+  padding: var(--size-4-3) var(--size-4-4);
+}
+
+.learning-loop-config-actions .setting-item,
+.learning-loop-config-actions .setting-item-control {
+  border: 0;
+  justify-content: flex-end;
+  padding: 0;
+  width: 100%;
+}
+
+.learning-loop-unlock-modal {
+  max-width: min(520px, calc(100vw - 32px));
+  width: 520px;
+}
+
+.learning-loop-unlock-modal .setting-item {
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--size-4-3);
+}
+
+.learning-loop-unlock-modal .setting-item-control,
+.learning-loop-unlock-modal input {
+  width: 100%;
+}
+
+.learning-loop-sidebar {
+  padding: var(--size-4-3);
+}
+
+.learning-loop-sidebar-hero {
+  align-items: center;
+  display: flex;
+  gap: var(--size-4-3);
+  margin-block: var(--size-4-2) var(--size-4-4);
+}
+
+.learning-loop-sidebar-hero h2,
+.learning-loop-sidebar-hero p {
+  margin: 0;
+}
+
+.learning-loop-sidebar-hero p {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+  margin-block-start: 2px;
+}
+
+.learning-loop-sidebar-logo {
+  align-items: center;
+  background: linear-gradient(145deg, var(--interactive-accent), var(--color-purple));
+  border-radius: 14px;
+  color: var(--text-on-accent);
+  display: flex;
+  flex: 0 0 44px;
+  height: 44px;
+  justify-content: center;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--interactive-accent) 24%, transparent);
+}
+
+.learning-loop-sidebar-logo svg {
+  height: 24px;
+  width: 24px;
+}
+
+.learning-loop-sidebar-status {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-inline-start: 4px solid var(--text-muted);
+  border-radius: var(--radius-m);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-block-end: var(--size-4-3);
+  padding: var(--size-4-3);
+}
+
+.learning-loop-sidebar-status span {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+}
+
+.learning-loop-sidebar-status[data-sync-state="synced"] {
+  border-inline-start-color: var(--text-success);
+}
+
+.learning-loop-sidebar-status[data-sync-state="connecting"],
+.learning-loop-sidebar-status[data-sync-state="syncing"],
+.learning-loop-sidebar-status[data-sync-state="waiting"] {
+  border-inline-start-color: var(--text-accent);
+}
+
+.learning-loop-sidebar-status[data-sync-state="error"] {
+  border-inline-start-color: var(--text-error);
+}
+
+.learning-loop-sidebar-connection {
+  background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary));
+  border-radius: var(--radius-m);
+  margin-block-end: var(--size-4-5);
+  padding: var(--size-4-3);
+}
+
+.learning-loop-sidebar-connection p {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.learning-loop-sidebar-eyebrow {
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+}
+
+.learning-loop-sidebar-section-title {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  letter-spacing: 0.04em;
+  margin: var(--size-4-5) 0 var(--size-4-2);
+}
+
+.learning-loop-sidebar-actions {
+  display: grid;
+  gap: var(--size-4-2);
+}
+
+.learning-loop-sidebar-action {
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  color: var(--text-normal);
+  display: flex;
+  gap: var(--size-4-3);
+  min-height: 58px;
+  padding: var(--size-4-3);
+  text-align: start;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+  width: 100%;
+}
+
+.learning-loop-sidebar-action:hover:not(:disabled) {
+  background: var(--background-modifier-hover);
+  border-color: color-mix(in srgb, var(--interactive-accent) 42%, var(--background-modifier-border));
+  transform: translateY(-1px);
+}
+
+.learning-loop-sidebar-action.is-primary {
+  background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-secondary));
+  border-color: color-mix(in srgb, var(--interactive-accent) 48%, var(--background-modifier-border));
+}
+
+.learning-loop-sidebar-action-icon {
+  align-items: center;
+  color: var(--text-accent);
+  display: flex;
+  flex: 0 0 26px;
+  justify-content: center;
+}
+
+.learning-loop-sidebar-action-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.learning-loop-sidebar-action-copy small {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+  line-height: 1.35;
+}
+
+.learning-loop-sidebar-hotkey-hint {
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  margin-block-start: var(--size-4-5);
+  padding-block-start: var(--size-4-3);
+}
+
+/* Learning Loop keeps stable IDs in Markdown frontmatter, but ordinary users
+   should work with the note itself rather than the implementation metadata. */
+.learning-loop-note .metadata-container,
+.learning-loop-note .inline-title {
+  display: none !important;
+}
+
+.learning-loop-note h1 {
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-block-end: 1.4em;
+  padding-block-end: 0.45em;
+}
+
+.learning-loop-note h2 {
+  border-inline-start: 4px solid var(--interactive-accent);
+  padding-inline-start: 0.55em;
+}
+
+@media (max-width: 700px) {
+  .learning-loop-config-section .setting-item {
+    display: flex;
+    gap: var(--size-4-3);
+  }
+}
